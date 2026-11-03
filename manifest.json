@@ -1,0 +1,65 @@
+{
+  "manifest_version": 3,
+  "name": "X 发展工作台",
+  "version": "1.9.4",
+  "action": {
+    "default_popup": "src/popup.html",
+    "default_title": "X 发展工作台 · 互关标记 · 媒体备份"
+  },
+  "description": "X 发展工作台：发评转统计与活跃排行、粉丝与互关标记、流速勋章、账号备注、改名记录、AI 回复/仿写/翻译/校对、爆帖灵感选题、推文海报、媒体批量备份（原图/视频/zip/CSV）。数据全部本地。",
+  "minimum_chrome_version": "111",
+  "permissions": [
+    "storage",
+    "unlimitedStorage",
+    "downloads"
+  ],
+  "host_permissions": [
+    "https://api.deepseek.com/*",
+    "https://api.openai.com/*",
+    "https://api.moonshot.cn/*",
+    "https://api.moonshot.ai/*",
+    "https://open.bigmodel.cn/*",
+    "https://api.siliconflow.cn/*",
+    "https://dashscope.aliyuncs.com/*",
+    "https://api.lkeap.cloud.tencent.com/*",
+    "https://pbs.twimg.com/*",
+    "https://video.twimg.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "options_page": "src/options.html",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://x.com/*",
+        "https://twitter.com/*"
+      ],
+      "js": [
+        "src/inject.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "https://x.com/*",
+        "https://twitter.com/*"
+      ],
+      "js": [
+        "src/settings.js",
+        "src/content.js",
+        "src/backup.js"
+      ],
+      "run_at": "document_start",
+      "world": "ISOLATED",
+      "all_frames": false
+    }
+  ]
+}

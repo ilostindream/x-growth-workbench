@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>X 发展工作台 · 设置</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="app">
+
+    <!-- ============ 左侧导航 ============ -->
+    <aside class="side">
+      <div class="brand">
+        <img src="../icons/icon48.png" alt="">
+        <b>X 发展工作台</b>
+      </div>
+      <div class="cap">设置</div>
+      <nav id="nav">
+        <a href="#g-tl" class="on"><i>🏷</i>时间线统计</a>
+        <a href="#g-enh"><i>✨</i>时间线增强</a>
+        <a href="#g-bk"><i>⬇</i>媒体备份</a>
+        <a href="#g-sync"><i>⚡</i>统计与同步</a>
+        <a href="#g-ai"><i>🤖</i>AI 助手</a>
+        <a href="#g-data"><i>💾</i>数据</a>
+        <a href="#g-about"><i>ℹ️</i>关于</a>
+      </nav>
+      <div class="side-ft">所有数据仅存本机浏览器<br>即时保存 · 改完即生效</div>
+    </aside>
+
+    <!-- ============ 主区 ============ -->
+    <main class="main">
+      <header class="crumb"><span id="crumbGroup">时间线统计</span> / 设置 <span id="saveHint" class="save-hint">已保存 ✓</span>
+        <label class="quick-sw" title="一键开关「今日活跃」悬浮面板">
+          <span>今日活跃面板</span>
+          <span class="sw sm"><input type="checkbox" id="panelEnabledQuick"><i></i></span>
+        </label>
+      </header>
+      <div class="content">
+
+        <!-- ============ 组：时间线统计 ============ -->
+        <div class="group" id="g-tl">
+          <h2>时间线统计</h2>
+          <p class="gdesc">统计你在 X 上刷到的内容，按「发 / 评 / 转」分列展示。</p>
+
+          <div class="card open">
+            <div class="card-hd"><span class="ic">🏷</span><div class="tt"><b>时间线徽章</b><span>作者名旁的小标签，一眼看到 TA 今天的动态</span></div><i class="chev"></i></div>
+            <div class="card-bd">
+              <div class="row">
+                <div class="lab"><b>显示徽章</b><span>关闭后时间线不再插入任何元素</span></div>
+                <label class="sw"><input type="checkbox" id="showBadge"><i></i></label>
+              </div>
+              <div class="row sub-row">
+                <div class="lab">徽章显示内容<span>「发」始终显示；粉丝数为千分位精确值</span></div>
+                <div class="chips">
+                  <label class="chip"><input type="checkbox" id="badgeShowReply">评</label>
+                  <label class="chip"><input type="checkbox" id="badgeShowRt">转</label>
+                  <label class="chip"><input type="checkbox" id="badgeShowFans">粉</label>
+                </div>
+              </div>
+              <div class="preview" id="badgePreview"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-hd"><span class="ic">📊</span><div class="tt"><b>排行面板</b><span>「今日活跃」悬浮面板（默认右上，避开返回顶部按钮）</span></div><i class="chev"></i></div>
+            <div class="card-bd">
+              <div class="row">
+                <div class="lab"><b>显示面板</b><span>总开关：关闭后 X 页面上不再出现「今日活跃」悬浮框（页头也有快捷开关）</span></div>
+                <label class="sw"><input type="checkbox" id="panelEnabled"><i></i></label>
+              </div>
+              <div class="row">
+                <div class="lab">位置</div>
+                <select id="panelPos">
+                  <option value="br">右下</option>
+                  <option value="bl">左下</option>
+                  <option value="tr">右上</option>
+                  <option value="tl">左上</option>
+                </select>
+              </div>
+              <div class="row">
+                <div class="lab">主题<span>自动 = 跟随 X 当前明暗</span></div>
+                <select id="panelTheme">
+                  <option value="auto">自动跟随</option>
+                  <option value="light">固定浅色</option>
+                  <option value="dark">固定深色</option>
+                </select>
+              </div>
+              <div class="row">
+                <div class="lab">面板宽度 <output id="panelWidthV"></output></div>
+                <input type="range" id="panelWidth" min="260" max="460" step="2">
+              </div>
+              <div class="row">
+                <div class="lab">列表最多显示 <output id="listLimitV"></output> 人</div>
+                <input type="range" id="listLimit" min="10" max="200" step="5">
+              </div>
+              <div class="row">
+                <div class="lab">排序方式</div>
+                <select id="sortBy">
+                  <option value="activity">活跃度（发+评）</option>
+                  <option value="post">发帖数</option>
+                  <option value="reply">评论数</option>
+                  <option value="fans">粉丝数</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-hd"><span class="ic">🔗</span><div class="tt"><b>互关标记</b><span>标出你与每位作者的关注关系，五种关系独立开关与配色</span></div><i class="chev"></i></div>
+            <div class="card-bd">
+              <div class="row">
+                <div class="lab"><b>启用互关标记</b></div>
+                <label class="sw"><input type="checkbox" id="relEnabled"><i></i></label>
+              </div>
+              <div class="row">
+                <div class="lab">标记位置</div>
+                <div class="seg" id="relPos">
+                  <button type="button" data-v="avatar">头像上方</button>
+                  <button type="button" data-v="name">名字后面</button>
+                </div>
+              </div>
+              <div class="rel-grid">
+                <div class="rel-row">
+                  <div class="rel-info"><i class="rel-dot" data-c="mutual"></i><div><b>互关</b><span>我们互相关注</span></div></div>
+                  <input type="color" class="rel-color" data-c="mutual">
+                  <label class="sw sm"><input type="checkbox" class="rel-on" data-c="mutual"><i></i></label>
+                </div>
+                <div class="rel-row">
+                  <div class="rel-info"><i class="rel-dot" data-c="nofb"></i><div><b>未回关</b><span>我关注了 TA，TA 没关注我</span></div></div>
+                  <input type="color" class="rel-color" data-c="nofb">
+                  <label class="sw sm"><input type="checkbox" class="rel-on" data-c="nofb"><i></i></label>
+                </div>
+                <div class="rel-row">
+                  <div class="rel-info"><i class="rel-dot" data-c="followme"></i><div><b>关注我</b><span>TA 关注了我，我没关注 TA</span></div></div>
+                  <input type="color" class="rel-color" data-c="followme">
+                  <label class="sw sm"><input type="checkbox" class="rel-on" data-c="followme"><i></i></label>
+                </div>
+                <div class="rel-row">
+                  <div class="rel-info"><i class="rel-dot" data-c="none"></i><div><b>无关注</b><span>互相都没有关注</span></div></div>
+                  <input type="color" class="rel-color" data-c="none">
+                  <label class="sw sm"><input type="checkbox" class="rel-on" data-c="none"><i></i></label>
+                </div>
+                <div class="rel-row">
+                  <div class="rel-info"><i class="rel-dot" data-c="self"></i><div><b>本尊</b><span>你自己的推文（金色标出，不参与关系判定）</span></div></div>
+                  <input type="color" class="rel-color" data-c="self">
+                  <label class="sw sm"><input type="checkbox" class="rel-on" data-c="self"><i></i></label>
+                </div>
+              </div>
+              <p class="note" id="relStats">已识别：读取中…</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ 组：时间线增强 ============ -->
+        <div class="group" id="g-enh" hidden>
+          <h2>时间线增强</h2>
+          <p class="gdesc">借鉴 BlueV / XHunt 等广受欢迎的能力，全部本地实现、零额外请求。</p>
+
+          <div class="card open">
+            <div class="card-hd"><span class="ic">🔥</span><div class="tt"><b>流速勋章</b><span>推文右上角显示「每小时浏览量」，一眼看出正在升温的推文</span></div><i class="chev"></i></div>
+            <div class="card-bd">
+              <div class="row">
+                <div class="lab"><b>显示流速勋章</b><span>浏览量来自页面自己的数据，不发额外请求</span></div>
+                <label class="sw"><input type="checkbox" id="showHeat"><i></i></label>
+              </div>
+              <div class="preview">
+                🔥<b>1.2k</b>/h 橙红 = 快速升温 &nbsp;·&nbsp; 🔥<b>230</b>/h 橙 = 有热度 &nbsp;·&nbsp; 🔥<b>42</b>/h 灰 = 平常水平
+              </div>
+              <p class="note">口径 = 推文发布至今的总浏览 ÷ 经过小时数。新发的推文数值波动大，适合看相对热度。</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-hd"><span class="ic">📝</span><div class="tt"><b>账号备注</b><span>给任意 X 账号加备注和颜色标签，时间线上直接显示</span></div><i class="chev"></i></div>
+            <div class="card-bd">
+              <div class="row">
+                <div class="lab"><b>时间线显示备注</b></div>
+                <label class="sw"><input type="checkbox" id="showNotes"><i></i></label>
+              </div>
+              <div class="row col">
+                <div class="lab">添加备注<span>填账号 handle（不带 @）</span></div>
+                <div class="inline">
+                  <input type="text" id="noteHandle" placeholder="例如 elonmusk" spellcheck="false" style="flex:0 0 130px">
+                  <input type="text" id="noteText" placeholder="备注内容，如：量化大佬" spellcheck="false">
+                  <input type="color" id="noteColor" value="#1d9bf0" title="标签颜色">
+                  <button class="btn primary" id="noteAdd">添加</button>
+                </div>
+              </div>
+              <div id="noteList" class="note-list"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-hd"><span class="ic">🔤</span><div class="tt"><b>改名记录</b><span>账号改了显示名时，在时间线上标出曾用名（借鉴 XHunt）</span></div><i class="chev"></i></div>
+            <div class="card-bd">
+              <div class="row">
+                <div class="lab"><b>显示曾用名标记</b><span>纯本地记录：扩展见过 TA 的名字之后才会追踪</span></div>
+                <label class="sw"><input type="checkbox" id="showNameHistory"><i></i></label>
+              </div>
+              <div class="preview">张三 <span class="demo-tag">曾名 李四</span> ← 检测到改名后的实际效果（悬停可看全部曾用名）</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-hd"><span class="ic">🚫</span><div class="tt"><b>广告过滤</b><span>自动隐藏带「广告」标记的推广推文（BlueV 同款，默认关）</span></div><i class="chev"></i></div>
+            <div class="card-bd">
+              <div class="row">
+                <div class="lab"><b>隐藏广告推文</b><span>识别 X 官方的推广标记；误伤时关掉即可还原</span></div>
+                <label class="sw"><input type="checkbox" id="hideAds"><i></i></label>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-hd"><span class="ic">🖼</span><div class="tt"><b>媒体地址收集</b><span>刷时间线时自动记录图片原图/视频地址（轻量模式，供下方勾选下载）</span></div><i class="chev"></i></div>
+            <div class="card-bd">
+              <div class="row">
+                <div class="lab"><b>收集媒体地址</b><span>只记地址不下载，不产生额外流量</span></div>
+                <label class="sw"><input type="checkbox" id="collectMedia"><i></i></label>
+              </div>
+              <p class="note" id="mediaStats">读取中…</p>
+              <div class="btns">
+                <button class="btn" id="mediaAll">全选</button>
+                <button class="btn" id="mediaNone">全不选</button>
+                <button class="btn primary" id="mediaDl">下载勾选项</button>
+              </div>
+              <div class="media-list" id="mediaList"></div>
+              <p class="note">图片为原图（orig），视频取最高码率 mp4。逐个下载，浏览器可能询问是否允许多文件下载，选「允许」。上限 400 条，超出自动淘汰最旧的。</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ 组：媒体备份 ============ -->
+        <div class="group" id="g-bk" hidden>
+          <h2>媒体备份</h2>
+          <p class="gdesc">借鉴 X Content Backup Tool 的全功能媒体备份：单推一键备份、批量下载（自动滚动收集 + 条件筛选）、zip 打包、数据表格导出。无登录、无次数限制，全部本地。</p>
+
+          <div class="card open">
+            <div class="card-hd"><span class="ic">⬇</span><div class="tt"><b>入口与界面</b><span>在哪里触发备份</span></div><i class="chev"></i></div>
+            <div class="card-bd">
+              <div class="row">
+                <div class="lab"><b>推文工具栏「⬇」按钮</b><span>点一下备份该推文的全部图片原图 + 最高码率视频</span></div>
+                <label class="sw"><input type="checkbox" id="bkBtn"><i></i></label>
+              </div>
+              <div class="row">
+                <div class="lab"><b>批量下载悬浮窗</b><span>页面右下角的紫色 ⬇ 悬浮球，打开批量面板（自动滚动收集 + 筛选下载）</span></div>
+                <label class="sw"><input type="checkbox" id="bkFab"><i></i></label>
+              </div>
+              <div class="row">
+                <div class="lab"><b>自动显示敏感内容</b><span>自动点开「显示」遮罩并去掉图片模糊（借鉴 revealNsfw）</span></div>
+                <label class="sw"><input type="checkbox" id="bkNsfw"><i></i></label>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-hd"><span class="ic">📁</span><div class="tt"><b>保存位置与文件名</b><span>下载目录内的相对路径</span></div><i class="chev"></i></div>
+            <div class="card-bd">
+              <div class="row">
+                <div class="lab"><b>子文件夹</b><span>留空 = 直接进浏览器下载目录；用 / 分多层</span></div>
+                <input type="text" id="bkFolder" class="txt" style="width:180px">
+              </div>
+              <div class="row">
+                <div class="lab"><b>按作者分文件夹</b><span>子文件夹下再按作者 handle 分一层</span></div>
+                <label class="sw"><input type="checkbox" id="bkByUser"><i></i></label>
+              </div>
+              <div class="row">
+                <div class="lab"><b>文件名模板</b><span>可用 token：{account} 账号 · {tweetid} 推文ID · {serial} 序号 · {hash} 文件哈希 · {tweetdate} 推文日期 · {tweetdatetime} 推文日期时间 · {date}/{datetime} 下载日期</span></div>
+                <input type="text" id="bkPattern" class="txt" style="width:260px">
+              </div>
+              <p class="note">示例：{account}_{tweetid}_{serial} → elonmusk_1234567890_1.jpg。文件名非法字符会自动替换为 _。</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-hd"><span class="ic">📦</span><div class="tt"><b>下载行为</b><span>打包、历史去重与限速</span></div><i class="chev"></i></div>
+            <div class="card-bd">
+              <div class="row">
+                <div class="lab"><b>打包为 zip</b><span>批量任务改存 zip（每 120 个文件一卷，防止内存过大）；浏览器内勾选项仍逐个下载</span></div>
+                <label class="sw"><input type="checkbox" id="bkZip"><i></i></label>
+              </div>
+              <div class="row">
+                <div class="lab"><b>视频同时下载缩略图</b><span>视频文件旁附带 _thumb.jpg</span></div>
+                <label class="sw"><input type="checkbox" id="bkThumb"><i></i></label>
+              </div>
+              <div class="row">
+                <div class="lab"><b>跳过历史已下载</b><span>按媒体地址去重，重复备份不会重复下载</span></div>
+                <label class="sw"><input type="checkbox" id="bkSkipDl"><i></i></label>
+              </div>
+              <div class="row">
+                <div class="lab"><b>批量完成后导出数据表格</b><span>CSV：推文ID/链接/内容/发布时间/点赞/转发/评论/浏览/媒体链接等 19 列</span></div>
+                <label class="sw"><input type="checkbox" id="bkCsv"><i></i></label>
+              </div>
+              <div class="row">
+                <div class="lab"><b>并发下载数</b><span>1–5，过高容易触发 X 限流</span></div>
+                <input type="number" id="bkConcurrent" min="1" max="5" class="txt" style="width:80px">
+              </div>
+              <div class="row">
+                <div class="lab"><b>下载间隔（毫秒）</b><span>两次下载之间的随机化基础间隔</span></div>
+                <input type="number" id="bkDelay" min="100" max="10000" step="100" class="txt" style="width:100px">
+              </div>
+              <div class="row">
+                <div class="lab"><b>自动滚动节奏（毫秒）</b><span>批量收集时两次滚动之间的随机延迟范围（最小/最大）</span></div>
+                <span style="display:flex;gap:6px;align-items:center;">
+                  <input type="number" id="bkScrollMin" min="300" max="10000" step="100" class="txt" style="width:90px">
+                  <span style="opacity:.5">~</span>
+                  <input type="number" id="bkScrollMax" min="400" max="20000" step="100" class="txt" style="width:90px">
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-hd"><span class="ic">🕘</span><div class="tt"><b>下载历史</b><span>已备份的媒体记录，支持筛选与导出</span></div><i class="chev"></i></div>
+            <div class="card-bd">
+              <div class="btns" style="margin-bottom:8px;">
+                <input type="text" id="bkHistQ" class="txt" placeholder="按用户/文件/推文ID筛选" style="width:200px">
+                <select id="bkHistType" class="txt" style="width:90px">
+                  <option value="">全部</option>
+                  <option value="photo">图片</option>
+                  <option value="video">视频</option>
+                  <option value="gif">GIF</option>
+                </select>
+                <button class="btn" id="bkHistCsv">导出 CSV</button>
+                <button class="btn" id="bkHistClear">清空历史</button>
+              </div>
+              <p class="note" id="bkHistStats">读取中…</p>
+              <div class="media-list" id="bkHistList" style="max-height:320px;overflow:auto;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ 组：统计与同步 ============ -->
+        <div class="group" id="g-sync" hidden>
+          <h2>统计与同步</h2>
+          <p class="gdesc">统计口径与自动补全的行为参数。</p>
+
+          <div class="card open">
+            <div class="card-hd"><span class="ic">🎯</span><div class="tt"><b>统计口径</b><span>本人账号识别</span></div><i class="chev"></i></div>
+            <div class="card-bd">
+              <div class="row">
+                <div class="lab"><b>本人账号</b><span>留空 = 自动识别；被识别错时才需要填（不带 @）</span></div>
+                <input type="text" id="selfHandle" placeholder="例如 elonmusk" spellcheck="false">
+              </div>
+              <p class="note">统计范围是「扩展加载后你刷到/打开过的内容」，按推文 ID 去重，跨天自动清零。</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-hd"><span class="ic">⚡</span><div class="tt"><b>自动补全</b><span>对视口内的活跃用户自动后台补拉数据。越激进越快，也越容易触发限流</span></div><i class="chev"></i></div>
+            <div class="card-bd">
+              <div class="row">
+                <div class="lab"><b>启用自动补全</b><span>后台页签在标签栏闪现属正常现象</span></div>
+                <label class="sw"><input type="checkbox" id="autoSync"><i></i></label>
+              </div>
+              <div class="row">
+                <div class="lab">启动间隔 <output id="autoGapV"></output> 秒</div>
+                <input type="range" id="autoGap" min="3" max="60" step="1">
+              </div>
+              <div class="row">
+                <div class="lab">并行页签数 <output id="autoParallelV"></output></div>
+                <input type="range" id="autoParallel" min="1" max="5" step="1">
+              </div>
+              <div class="row">
+                <div class="lab">同一用户冷却 <output id="autoTTLV"></output> 分钟</div>
+                <input type="range" id="autoTTL" min="2" max="720" step="1">
+              </div>
+              <div class="row">
+                <div class="lab">单次会话上限 <output id="autoMaxV"></output> 次</div>
+                <input type="range" id="autoMax" min="0" max="300" step="5">
+              </div>
+              <p class="note">吞吐估算：约每分钟 <b id="thruV">–</b> 位用户（3 路并行 + 5 秒间隔 ≈ 20+）。</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ 组：AI 助手 ============ -->
+        <div class="group" id="g-ai" hidden>
+          <h2>AI 助手</h2>
+          <p class="gdesc">回复草稿、仿写、翻译、校对排版共用这一个接口配置。</p>
+
+          <div class="card open">
+            <div class="card-hd"><span class="ic">🤖</span><div class="tt"><b>AI 接口（OpenAI 兼容）</b><span>在 X 的回复框旁点「✨ AI」使用；生成后由你审核发送，扩展绝不代发</span></div><i class="chev"></i></div>
+            <div class="card-bd">
+              <div class="row col">
+                <div class="lab">接口地址</div>
+                <input type="text" id="aiBase" placeholder="https://api.deepseek.com" spellcheck="false">
+              </div>
+              <div class="row col">
+                <div class="lab">API Key<span>仅存本地，不经过任何第三方服务器</span></div>
+                <input type="password" id="aiKey" placeholder="sk-…" spellcheck="false" autocomplete="off">
+              </div>
+              <div class="row col">
+                <div class="lab">模型名</div>
+                <div class="inline">
+                  <input type="text" id="aiModel" placeholder="deepseek-flash" spellcheck="false">
+                  <button class="btn" id="aiTest">测试连接</button>
+                </div>
+                <p class="note" id="aiTestOut">DeepSeek 当前可用：deepseek-flash（快·便宜）/ deepseek-v4-pro（强·贵）。旧名 deepseek-chat 已于 2026-07-24 停用。</p>
+              </div>
+              <div class="row col">
+                <div class="lab">你的说话风格备注（可选）</div>
+                <textarea id="aiNotes" rows="3" placeholder="如：口语化、爱用网络梗、少用 emoji、常以「确实」开头"></textarea>
+              </div>
+              <div class="row">
+                <div class="lab">保存 AI 配置</div>
+                <button class="btn primary" id="aiSave">保存</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ 组：数据 ============ -->
+        <div class="group" id="g-data" hidden>
+          <h2>数据</h2>
+          <p class="gdesc">本地数据的备份与清理。</p>
+
+          <div class="card open">
+            <div class="card-hd"><span class="ic">💾</span><div class="tt"><b>本地数据</b><span>导出 / 导入 / 清空</span></div><i class="chev"></i></div>
+            <div class="card-bd">
+              <p class="note" id="dataStats">读取中…</p>
+              <div class="btns">
+                <button class="btn" id="expBtn">导出 JSON</button>
+                <button class="btn" id="impBtn">导入 JSON</button>
+                <button class="btn danger" id="clrBtn">清空今日统计</button>
+                <input type="file" id="impFile" accept=".json,application/json" hidden>
+              </div>
+              <p class="note">导入后刷新 x.com 生效；导出文件包含今日统计、备注与设置，注意保管（不含任何账号凭证）。</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ 组：关于 ============ -->
+        <div class="group" id="g-about" hidden>
+          <h2>关于</h2>
+          <p class="gdesc">工作原理、权限与故障排查。</p>
+
+          <div class="card open">
+            <div class="card-hd"><span class="ic">©️</span><div class="tt"><b>版权说明</b></div><i class="chev"></i></div>
+            <div class="card-bd">
+              <p class="note">本扩展由 <a href="https://x.com/lostindream" target="_blank" style="color:#1d9bf0">@lostindream</a> 原创开发，仅供个人学习与自用；未经授权禁止商业用途、二次打包分发或去除版权声明。</p>
+            </div>
+          </div>
+
+          <div class="card open">
+            <div class="card-hd"><span class="ic">⚙</span><div class="tt"><b>工作原理</b><span>数据从哪来</span></div><i class="chev"></i></div>
+            <div class="card-bd">
+              <p class="note">
+                数据来自页面自己加载的时间线响应（在页面最早期截获，按 JSON 结构解析，不依赖界面 class 名），零额外网络请求；
+                补全/同步则打开真实页面复用 X 自己的请求——不伪造任何接口参数，不怕接口改版。
+                统计按「推文 ID + 本地日期」去重，刷新、重启浏览器不丢。
+              </p>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-hd"><span class="ic">🔐</span><div class="tt"><b>权限说明</b></div><i class="chev"></i></div>
+            <div class="card-bd">
+              <p class="note">
+                storage：保存统计数据与设置（全在本机）。<br>
+                x.com / twitter.com：注入统计脚本。<br>
+                api.deepseek.com 等域名：仅当你配置了对应 AI 接口时才会发出请求。<br>
+                pbs.twimg.com / video.twimg.com：媒体下载时拉取文件用（twimg 官方 CDN）。
+              </p>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-hd"><span class="ic">🛠</span><div class="tt"><b>故障排查</b></div><i class="chev"></i></div>
+            <div class="card-bd">
+              <p class="note">
+                面板不显示 → 检查「显示面板」是否被关闭、X 是否弹过异常验证。<br>
+                数字偏小 → 点面板某一行做一次全量同步；自动补全只拉第一页。<br>
+                深度调试 → 打开「调试日志」后到 x.com 控制台看 [XAM] 前缀日志。
+              </p>
+              <div class="row">
+                <div class="lab"><b>调试日志</b><span>输出 [XAM] 日志到控制台</span></div>
+                <label class="sw"><input type="checkbox" id="debug"><i></i></label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="settings.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

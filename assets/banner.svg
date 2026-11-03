@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-label="X 发展工作台">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b0f14"/>
+      <stop offset="0.55" stop-color="#11161d"/>
+      <stop offset="1" stop-color="#161d26"/>
+    </linearGradient>
+    <linearGradient id="amber" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffb02e"/>
+      <stop offset="1" stop-color="#f0760a"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.82" cy="0.12" r="0.65">
+      <stop offset="0" stop-color="#f7b500" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#f7b500" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="420" fill="url(#bg)"/>
+  <rect width="1280" height="420" fill="url(#glow)"/>
+
+  <!-- 网格细线装饰 -->
+  <g stroke="#ffffff" stroke-opacity="0.04">
+    <line x1="0" y1="105" x2="1280" y2="105"/>
+    <line x1="0" y1="210" x2="1280" y2="210"/>
+    <line x1="0" y1="315" x2="1280" y2="315"/>
+    <line x1="320" y1="0" x2="320" y2="420"/>
+    <line x1="640" y1="0" x2="640" y2="420"/>
+    <line x1="960" y1="0" x2="960" y2="420"/>
+  </g>
+
+  <!-- 图标：琥珀橙圆角方块 + X + 活跃度柱 -->
+  <g transform="translate(92,105)">
+    <rect width="210" height="210" rx="48" fill="url(#amber)"/>
+    <rect width="210" height="105" rx="48" fill="url(#shine)"/>
+    <g transform="translate(42,26) scale(5.25)" fill="#14181d">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 9.451-16.23zm-1.161 17.52h1.833L7.084 4.126H5.117l11.966 15.644z"/>
+    </g>
+    <g fill="#ffffff">
+      <rect x="38" y="152" width="18" height="24" rx="5"/>
+      <rect x="62" y="138" width="18" height="38" rx="5"/>
+      <rect x="86" y="122" width="18" height="54" rx="5"/>
+    </g>
+  </g>
+
+  <!-- 标题区 -->
+  <text x="356" y="196" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="86" font-weight="bold" fill="#f5f7fa">X 发展工作台</text>
+  <text x="360" y="248" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="27" fill="#93a1b0">X Growth Workbench · Chrome / Edge 浏览器扩展 · 数据全部本地，不上传任何信息</text>
+
+  <!-- 功能徽标条 -->
+  <g font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="24" font-weight="600">
+    <g transform="translate(358,296)">
+      <rect width="176" height="52" rx="26" fill="none" stroke="#f7b500" stroke-opacity="0.85" stroke-width="2"/>
+      <text x="88" y="35" text-anchor="middle" fill="#ffd27a">活跃统计</text>
+    </g>
+    <g transform="translate(552,296)">
+      <rect width="176" height="52" rx="26" fill="none" stroke="#00ba7c" stroke-opacity="0.9" stroke-width="2"/>
+      <text x="88" y="35" text-anchor="middle" fill="#5fe3ae">互关标记</text>
+    </g>
+    <g transform="translate(746,296)">
+      <rect width="176" height="52" rx="26" fill="none" stroke="#1d9bf0" stroke-opacity="0.9" stroke-width="2"/>
+      <text x="88" y="35" text-anchor="middle" fill="#7cc4ff">爆帖灵感</text>
+    </g>
+    <g transform="translate(940,296)">
+      <rect width="176" height="52" rx="26" fill="none" stroke="#f4212e" stroke-opacity="0.85" stroke-width="2"/>
+      <text x="88" y="35" text-anchor="middle" fill="#ff8f96">AI 助手</text>
+    </g>
+    <g transform="translate(1134,296)">
+      <rect width="110" height="52" rx="26" fill="none" stroke="#93a1b0" stroke-opacity="0.8" stroke-width="2"/>
+      <text x="55" y="35" text-anchor="middle" fill="#c3cdd6">备份</text>
+    </g>
+  </g>
+
+  <!-- 底部版权行 -->
+  <text x="358" y="386" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="20" fill="#5d6b7a">原创 · @lostindream · 仅供个人学习与自用</text>
+</svg>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>X 发展工作台</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="hd">
+    <img src="../icons/icon48.png" alt="">
+    <div class="tt"><b>X 发展工作台</b><span>互关标记快捷设置 · 只读取页面已加载的数据</span></div>
+  </header>
+
+  <div class="pos">
+    <span class="pos-lab">标记位置</span>
+    <div class="seg" id="posSeg">
+      <button type="button" data-v="avatar">头像上方</button>
+      <button type="button" data-v="name">名字后面</button>
+    </div>
+  </div>
+
+  <div id="rows">
+    <div class="row" data-k="mutual">
+      <span class="tag" style="background:#00ba7c">互关</span>
+      <div class="info"><b>互关</b><span>我们互相关注</span></div>
+      <input type="color" class="color" title="标记颜色">
+      <label class="sw"><input type="checkbox"><i></i></label>
+    </div>
+    <div class="row" data-k="nofb">
+      <span class="tag" style="background:#f4212e">未回关</span>
+      <div class="info"><b>未回关</b><span>我关注了 TA，TA 没关注我</span></div>
+      <input type="color" class="color" title="标记颜色">
+      <label class="sw"><input type="checkbox"><i></i></label>
+    </div>
+    <div class="row" data-k="followme">
+      <span class="tag" style="background:#f7931a">关注我</span>
+      <div class="info"><b>关注我</b><span>TA 关注了我，我没关注 TA</span></div>
+      <input type="color" class="color" title="标记颜色">
+      <label class="sw"><input type="checkbox"><i></i></label>
+    </div>
+    <div class="row" data-k="none">
+      <span class="tag" style="background:#8899a6">无关注</span>
+      <div class="info"><b>无关注</b><span>互相都没有关注</span></div>
+      <input type="color" class="color" title="标记颜色">
+      <label class="sw"><input type="checkbox"><i></i></label>
+    </div>
+  </div>
+
+  <p class="stats" id="stats">已识别：读取中…</p>
+
+  <footer class="ft">
+    <a href="#" id="openOptions">⚙ 全部设置</a>
+    <span class="cp">© @lostindream</span>
+  </footer>
+
+  <script src="settings.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
