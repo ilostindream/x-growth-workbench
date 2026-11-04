@@ -1013,8 +1013,10 @@
   }
 
   const AI_STYLES = [
-    { label: '智能匹配', prompt: '根据推文内容自动选择最合适的口吻：内容专业就专业接话，轻松就轻松接话' },
+    // 赞同共鸣排在智能匹配左边（2026-11-04 用户要求：鼠标下滑更顺手），
+    // 智能匹配仍是「换一条」的默认风格（按 label 查找，不依赖数组顺序）
     { label: '赞同共鸣', prompt: '表达真诚的赞同与共鸣，可以补充一句自己的感受或经历' },
+    { label: '智能匹配', prompt: '根据推文内容自动选择最合适的口吻：内容专业就专业接话，轻松就轻松接话' },
     { label: '补充观点', prompt: '在对方观点基础上补充一个新的角度或信息，语气谦和' },
     { label: '友好提问', prompt: '表达兴趣并提出一个具体、开放式的追问，展示真的想交流' },
     { label: '专业分析', prompt: '给出理性、有信息量的分析视角，语气克制、就事论事' },
@@ -2228,7 +2230,7 @@
       act.appendChild(mk('🔄 换一条', () => {
         const live = document.contains(toolbar) ? toolbar : document.querySelector('div[data-testid="toolBar"]');
         if (!live) { renderToast('回复框已关闭'); return; }
-        aiGenerate(btn, live, lastReplyStyle || AI_STYLES[0], recentReplies.slice());
+        aiGenerate(btn, live, lastReplyStyle || AI_STYLES.find((s) => s.label === '智能匹配'), recentReplies.slice());
       }, true));
       act.appendChild(mk('🚀 一键发布', () => {
         const live = document.contains(toolbar) ? toolbar : document.querySelector('div[data-testid="toolBar"]');
