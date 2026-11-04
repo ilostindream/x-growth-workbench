@@ -1406,7 +1406,18 @@
     });
   }
 
-  function aiGenerate(btn, toolbar, st) {
+  // 最近生成过的回复（最多 3 条）：「换一个」时喂给 AI 作防雷同约束
+  const recentReplies = [];
+  function rememberGenerated(text) {
+    const t = (text || '').trim();
+    if (!t) return;
+    const i = recentReplies.indexOf(t);
+    if (i !== -1) recentReplies.splice(i, 1);
+    recentReplies.push(t);
+    while (recentReplies.length > 3) recentReplies.shift();
+  }
+
+  function aiGenerate(btn, toolbar, st, avoid) {
     const ctx = aiContext(toolbar);
     if (!ctx || !ctx.text) {
       renderToast('没有找到要回复的推文，请在推文详情页/回复框使用');
@@ -1416,9 +1427,13 @@
     btn.style.pointerEvents = 'none';
     // 15 秒还没回来提示网络慢（后台有 30s 超时兜底，不会永远转圈）
     const slowTimer = setTimeout(() => { btn.textContent = '生成中…(网络较慢)'; }, 15000);
+    let userMsg = '推文作者：@' + ctx.handle + '\n推文内容：\n' + ctx.text;
+    if (avoid && avoid.length) {
+      userMsg += '\n\n你已经为这条推文生成过以下回复，用户不满意。新回复必须在观点、切入角度或句式上明显不同，禁止只做同义改写：\n- ' + avoid.join('\n- ');
+    }
     try {
       chrome.runtime.sendMessage(
-        { type: 'xam_ai', payload: { system: aiSystemPrompt(st), user: '推文作者：@' + ctx.handle + '\n推文内容：\n' + ctx.text } },
+        { type: 'xam_ai', payload: { system: aiSystemPrompt(st), user: userMsg } },
         (res) => {
           clearTimeout(slowTimer);
           btn.textContent = 'AI';
@@ -1437,7 +1452,11 @@
             return;
           }
           insertReply(toolbar, res.text, (filled) => {
-            if (filled) renderToast('草稿已填入回复框，请你审核后自行发送');
+            if (filled) {
+              rememberGenerated(res.text);
+              renderToast('草稿已填入回复框，请你审核后自行发送');
+              showRegenBar(btn, toolbar, st);
+            }
           });
         }
       );
@@ -1448,6 +1467,85 @@
       console.error('[XAM] AI 调用异常：', e);
       renderToast('AI 调用失败：' + e.message);
     }
+  }
+
+  /* ---------- 换一个 / 一键发布：草稿填入后的快捷操作条 ---------- */
+
+  let regenBarEl = null;
+
+  // 发布按钮：弹窗用 tweetButton，内联回复用 tweetButtonInline；取可见且可点的那个
+  function findPublishBtn(toolbar) {
+    const root = modalRootOf(toolbar) || document;
+    const sel = '[data-testid="tweetButton"], [data-testid="tweetButtonInline"]';
+    const list = root.querySelectorAll(sel);
+    for (let i = 0; i < list.length; i++) {
+      if (edVisible(list[i])) return list[i];
+    }
+    const all = document.querySelectorAll(sel);
+    for (let i = 0; i < all.length; i++) {
+      if (edVisible(all[i])) return all[i];
+    }
+    return null;
+  }
+
+  function publishReply(toolbar) {
+    const b = findPublishBtn(toolbar);
+    if (!b) { renderToast('没找到「回复」按钮，请手动点击发送'); return; }
+    if (b.getAttribute('aria-disabled') === 'true' || b.disabled) {
+      renderToast('回复框是空的或内容未就绪，按钮不可点');
+      return;
+    }
+    b.click();
+    if (regenBarEl) { regenBarEl.remove(); regenBarEl = null; }
+    renderToast('已点击回复发送 ✅');
+  }
+
+  // 底部快捷操作条：不满意 → 换一个（防雷同重新生成并替换）；满意 → 一键发布
+  function showRegenBar(genBtn, toolbar, st) {
+    if (regenBarEl) regenBarEl.remove();
+    const dark = detectTheme() === 'dark';
+    const bar = document.createElement('div');
+    regenBarEl = bar;
+    bar.style.cssText = 'position:fixed;right:20px;bottom:20px;z-index:2147483115;display:flex;align-items:center;gap:8px;' +
+      'padding:8px 10px 8px 14px;border-radius:999px;box-shadow:0 8px 28px rgba(0,0,0,.3);font-family:inherit;font-size:13px;' +
+      (dark ? 'background:#16181c;color:#e7e9ea;border:1px solid rgba(255,255,255,.14);' : 'background:#fff;color:#0f1419;border:1px solid rgba(0,0,0,.1);');
+    const tip = document.createElement('span');
+    tip.textContent = '对这条回复满意吗？';
+    tip.style.cssText = 'white-space:nowrap;opacity:.85;';
+    const mkBtn = (label, primary, fn) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.style.cssText = 'padding:6px 14px;border-radius:999px;border:0;cursor:pointer;font-size:12px;font-weight:700;font-family:inherit;white-space:nowrap;' +
+        (primary ? 'background:#00ba7c;color:#fff;' : (dark ? 'background:rgba(255,255,255,.12);color:#e7e9ea;' : 'background:#eff3f4;color:#0f1419;'));
+      b.addEventListener('click', () => fn(b));
+      return b;
+    };
+    const close = document.createElement('i');
+    close.textContent = '✕';
+    close.style.cssText = 'cursor:pointer;font-style:normal;opacity:.5;padding:2px 4px;';
+    close.addEventListener('click', () => { bar.remove(); if (regenBarEl === bar) regenBarEl = null; });
+    // 5 分钟后自动收起，避免残留在不相关的页面上
+    const expire = setTimeout(() => { bar.remove(); if (regenBarEl === bar) regenBarEl = null; }, 5 * 60 * 1000);
+    bar.addEventListener('remove-clean', () => clearTimeout(expire), { once: true });
+    bar.appendChild(tip);
+    bar.appendChild(mkBtn('🔄 换一个', false, () => {
+      const live = document.contains(toolbar) ? toolbar : document.querySelector('div[data-testid="toolBar"]');
+      if (!live) { renderToast('回复框已关闭'); bar.remove(); if (regenBarEl === bar) regenBarEl = null; return; }
+      b.textContent = '生成中…';
+      b.style.pointerEvents = 'none';
+      aiGenerate(genBtn, live, st, recentReplies.slice());
+      // 生成结束后 aiGenerate 会把 genBtn 文案复原，操作条由新的 showRegenBar 重建
+      setTimeout(() => { bar.remove(); if (regenBarEl === bar) regenBarEl = null; }, 300);
+    }));
+    bar.appendChild(mkBtn('🚀 一键发布', true, () => {
+      const live = document.contains(toolbar) ? toolbar : document.querySelector('div[data-testid="toolBar"]');
+      publishReply(live);
+    }));
+    bar.appendChild(close);
+    ['mousedown', 'mouseup', 'pointerdown', 'click', 'touchstart'].forEach((ev) => {
+      bar.addEventListener(ev, (e) => e.stopPropagation());
+    });
+    document.documentElement.appendChild(bar);
   }
 
   /* ---------- AI 工具（借鉴 BlueV）：仿写 / 翻译 / 校对排版 / 海报 ---------- */
@@ -2100,15 +2198,8 @@
       m.appendChild(c);
     };
     if (!hasKey) m.appendChild(mk('⚙ 先设置 AI 接口', aiSetup));
-    if (hasKey) {
-      cap('回复工具');
-      // 工具组（借鉴 BlueV）：仿写 / 翻译 / 校对排版
-      m.appendChild(mk('✍️ 仿写此推', () => aiRewrite(toolbar)));
-      m.appendChild(mk('🌐 翻译此推', () => aiTranslate()));
-      m.appendChild(mk('🧹 校对排版', () => aiProofread(toolbar)));
-      sep();
-    }
-    // 8 种回复风格：两列网格 + 图标，压缩纵向空间
+    // 8 种回复风格：两列网格 + 图标，压缩纵向空间。
+    // 风格是高频操作，放在「回复工具」上面（2026-11-04 用户要求）
     const STYLE_ICONS = {
       '智能匹配': '✨', '赞同共鸣': '👍', '补充观点': '🧩', '友好提问': '🙋',
       '专业分析': '📊', '幽默轻松': '😄', '礼貌反驳': '⚖️', '简短支持': '💪'
@@ -2124,6 +2215,14 @@
       }, true));
     }
     m.appendChild(grid);
+    if (hasKey) {
+      sep();
+      cap('回复工具');
+      // 工具组（借鉴 BlueV）：仿写 / 翻译 / 校对排版
+      m.appendChild(mk('✍️ 仿写此推', () => aiRewrite(toolbar)));
+      m.appendChild(mk('🌐 翻译此推', () => aiTranslate()));
+      m.appendChild(mk('🧹 校对排版', () => aiProofread(toolbar)));
+    }
     sep();
     // 海报不依赖 AI Key，始终可用；接口/风格统一在扩展设置页配置，菜单里不再占位
     m.appendChild(mk('🖼 生成海报', () => makePoster(toolbar)));
