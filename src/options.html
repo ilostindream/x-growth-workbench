@@ -22,6 +22,7 @@
         <a href="#g-bk"><i>⬇</i>媒体备份</a>
         <a href="#g-sync"><i>⚡</i>统计与同步</a>
         <a href="#g-ai"><i>🤖</i>AI 助手</a>
+        <a href="#g-limit"><i>🛡</i>限流检测</a>
         <a href="#g-data"><i>💾</i>数据</a>
         <a href="#g-about"><i>ℹ️</i>关于</a>
       </nav>
@@ -407,6 +408,42 @@
                 <div class="lab">保存 AI 配置</div>
                 <button class="btn primary" id="aiSave">保存</button>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ 组：限流检测 ============ -->
+        <div class="group" id="g-limit" hidden>
+          <h2>限流检测</h2>
+          <p class="gdesc">输入 X 用户名，检测账号是否被限流（影子封禁）：个人页是否可见、搜索是否搜得到近期推文、互动率是否异常走低。</p>
+
+          <div class="card open">
+            <div class="card-hd"><span class="ic">🔎</span><div class="tt"><b>开始检测</b><span>后台临时标签页读取公开数据，检测完自动关闭；全部数据仅存本机</span></div><i class="chev"></i></div>
+            <div class="card-bd">
+              <div class="row">
+                <div class="lab"><b>X 用户名</b><span>不带 @，可填任意账号；默认填入你自己的账号</span></div>
+                <input type="text" id="limitHandle" class="txt" style="width:220px" placeholder="例如 lostindream" autocomplete="off" spellcheck="false">
+              </div>
+              <div class="btns">
+                <button class="btn primary" id="limitRun">开始检测</button>
+                <button class="btn" id="limitAnon">打开匿名复核</button>
+                <button class="btn" id="limitClear">清除历史</button>
+              </div>
+              <p class="note" id="limitStatus">尚未检测。一次检测约需 10～40 秒（依次读取个人页与搜索页），期间请勿关闭本页。</p>
+              <p class="note">结果基于公开数据间接推断，仅供参考；X 官方不公布限流状态。读取失败的项一律记为「无法判定」，不会算作正常。</p>
+              <div id="limitResult" hidden></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-hd"><span class="ic">📐</span><div class="tt"><b>判定口径与局限</b><span>检测项如何得出结论</span></div><i class="chev"></i></div>
+            <div class="card-bd">
+              <p class="note">
+                <b>账号可达性</b>：个人页是否显示「账号已停用 / 不存在」。<br>
+                <b>搜索可见性</b>：以 <code>from:用户名</code> 搜「最新」，若个人页有近期推文但搜索无命中，记为「疑似搜索限制」；账号本身没发过推文时不判异常。<br>
+                <b>互动率</b>：近期可见推文的平均（赞＋转＋评）÷ 粉丝数，与本机历史快照比较，用于观察触达趋势。X 不提供曝光数，此项只是间接参考。<br>
+                <b>重要局限</b>：X 的匿名 guest / 搜索建议接口已失效，本扩展只能用当前<b>已登录会话</b>视角采集。查看自己的账号时结果会偏乐观（X 会个性化展示），建议点「打开匿名复核」后在无痕窗口登录态外交叉验证；回复降权、幽灵封禁等需要他人视角的限制无法本地自动判定。
+              </p>
             </div>
           </div>
         </div>

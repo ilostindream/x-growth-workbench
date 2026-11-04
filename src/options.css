@@ -241,6 +241,35 @@ output { color: var(--blue-d); font-weight: 600; }
 }
 .empty-list { color: var(--tx2); font-size: 12px; padding: 14px 0; }
 
+/* 限流检测结果 */
+.limit-verdict { display: flex; flex-direction: column; gap: 3px; margin-top: 14px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); }
+.limit-verdict b { font-size: 15px; }
+.limit-verdict span { font-size: 11.5px; color: var(--tx2); }
+.limit-verdict.ok { background: rgba(0,186,124,.08); border-color: rgba(0,186,124,.35); }
+.limit-verdict.ok b { color: #07875d; }
+.limit-verdict.suspect { background: rgba(244,33,46,.07); border-color: rgba(244,33,46,.3); }
+.limit-verdict.suspect b { color: #d21f2c; }
+.limit-verdict.unknown { background: rgba(247,147,26,.08); border-color: rgba(247,147,26,.35); }
+.limit-verdict.unknown b { color: #b56d00; }
+.limit-warn { margin-top: 10px; padding: 9px 11px; border-radius: 8px; background: #fff8e6; border: 1px solid #f2dca8; font-size: 12px; line-height: 1.6; color: #7a5a00; }
+.limit-items { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.limit-item { display: flex; gap: 9px; align-items: flex-start; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; }
+.limit-item > div { min-width: 0; }
+.limit-item b { display: block; font-size: 13px; }
+.limit-item span { display: block; font-size: 11.5px; color: var(--tx2); margin-top: 3px; line-height: 1.6; }
+.limit-dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 5px; flex: 0 0 auto; background: #8899a6; }
+.limit-dot.ok { background: #00ba7c; }
+.limit-dot.bad { background: #f4212e; }
+.limit-dot.unknown { background: #f7931a; }
+.limit-dot.info { background: #1d9bf0; }
+.limit-trend { margin-top: 14px; }
+.limit-trend > b { display: block; font-size: 12.5px; margin-bottom: 8px; }
+.limit-trow { display: flex; align-items: center; gap: 8px; margin: 5px 0; font-size: 11px; color: var(--tx2); }
+.limit-tt { width: 108px; flex: 0 0 auto; }
+.limit-tbar { flex: 1; height: 8px; background: rgba(29,155,240,.12); border-radius: 99px; overflow: hidden; }
+.limit-tbar i { display: block; height: 100%; background: var(--blue); border-radius: 99px; }
+.limit-tv { width: 58px; text-align: right; flex: 0 0 auto; }
+
 @media (max-width: 760px) {
   .side { width: 64px; flex-basis: 64px; padding: 14px 8px; }
   .brand b, .cap, .side-ft, #nav a i + * { display: none; }

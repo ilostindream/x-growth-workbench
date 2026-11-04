@@ -2337,6 +2337,103 @@
     });
   } catch (e) {}
 
+  /* ---------- 限流检测：后台临时标签页内的本地采集 ----------
+   * 只读取当前页面 DOM，不调用任何外部接口、不上传数据。
+   * 采集失败一律返回「无法判定」，绝不把读取失败当成「正常」。
+   */
+  function limitParseCount(s) {
+    if (!s) return null;
+    const m = String(s).replace(/,/g, '').match(/([\d.]+)\s*([KkMm万]?)/);
+    if (!m) return null;
+    let n = parseFloat(m[1]);
+    if (!isFinite(n)) return null;
+    if (/[Kk]/.test(m[2])) n *= 1e3;
+    else if (/[Mm]/.test(m[2])) n *= 1e6;
+    else if (m[2] === '万') n *= 1e4;
+    return Math.round(n);
+  }
+
+  function limitProfileData(handle) {
+    const body = (document.body && document.body.innerText) || '';
+    let state = 'unknown';
+    if (/Account suspended|已被停用|账号已停用|has been suspended/i.test(body)) state = 'suspended';
+    else if (/doesn'?t exist|账号不存在|用户不存在|does not exist/i.test(body)) state = 'missing';
+    else if (document.querySelector('[data-testid="primaryColumn"]') ||
+             document.querySelector('article[data-testid="tweet"]')) state = 'ok';
+    const isProtected = /These posts are protected|这些帖子受保护|受保护的帖子/i.test(body);
+
+    let followers = null;
+    const fl = document.querySelector('a[href$="/followers"], a[href*="/followers"]');
+    if (fl) followers = limitParseCount(fl.getAttribute('aria-label') || fl.textContent || '');
+
+    const arts = Array.prototype.slice.call(
+      document.querySelectorAll('article[data-testid="tweet"]')
+    ).slice(0, 12);
+    const engs = [];
+    arts.forEach((art) => {
+      const grp = art.querySelector('div[role="group"]');
+      if (!grp) return;
+      const read = (id) => {
+        const el = grp.querySelector('[data-testid="' + id + '"]');
+        if (!el) return 0;
+        return limitParseCount(el.getAttribute('aria-label') || el.innerText || '') || 0;
+      };
+      const sum = read('reply') + read('retweet') + read('like');
+      if (sum > 0) engs.push(sum);
+    });
+    const avgEng = engs.length
+      ? Math.round(engs.reduce((a, b) => a + b, 0) / engs.length) : null;
+    const ownTweets = arts.filter((a) =>
+      a.querySelector('a[href^="/' + handle + '/status/"]')).length;
+    return {
+      ok: true, task: 'profile', state: state, protected: isProtected,
+      followers: followers, visibleTweets: arts.length, ownTweets: ownTweets,
+      avgEng: avgEng, engSamples: engs.length
+    };
+  }
+
+  function limitSearchData(handle) {
+    const body = (document.body && document.body.innerText) || '';
+    const arts = Array.prototype.slice.call(
+      document.querySelectorAll('article[data-testid="tweet"]')
+    );
+    const ownHits = arts.filter((a) =>
+      a.querySelector('a[href^="/' + handle + '/status/"]')).length;
+    return {
+      ok: true, task: 'search', resultCount: arts.length, ownHits: ownHits,
+      noResult: /No results for|没有找到|没有结果|Try searching for/i.test(body),
+      error: /Something went wrong|出错了|Try again|重试/i.test(body)
+    };
+  }
+
+  function limitProbe(task, handle) {
+    return new Promise((resolve) => {
+      const started = Date.now();
+      const tick = () => {
+        const body = (document.body && document.body.innerText) || '';
+        const arts = document.querySelectorAll('article[data-testid="tweet"]').length;
+        const ready = arts > 0 ||
+          /Account suspended|doesn'?t exist|账号不存在|No results|没有结果|Something went wrong|出错了/i.test(body);
+        if (ready || Date.now() - started > 12000) {
+          resolve(task === 'search' ? limitSearchData(handle) : limitProfileData(handle));
+          return;
+        }
+        setTimeout(tick, 600);
+      };
+      tick();
+    });
+  }
+
+  try {
+    chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+      if (!msg || msg.type !== 'xam_limit_probe') return;
+      limitProbe(msg.task, msg.handle)
+        .then((r) => sendResponse(r))
+        .catch((e) => sendResponse({ ok: false, error: String((e && e.message) || e) }));
+      return true;   // 异步响应
+    });
+  } catch (e) {}
+
 
   // 滚动感知：用户滚动期间完全不扫描。
   // 停在顶部时 X 会持续拉流新推文，MutationObserver 高频触发全量扫描，
