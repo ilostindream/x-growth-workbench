@@ -1714,7 +1714,125 @@
     document.documentElement.appendChild(c);
   }
 
-  // 发帖框专用菜单：爆帖灵感选题方向（无回复工具/回复风格）
+  /* ---------- 文案优化（发帖框里已写好内容时）----------
+   * 与「校对排版」的区别：校对只纠错别字/标点/分段，不动写法；
+   * 文案优化会给诊断 + 改写版 + 两个不同角度的备选，且可一键替换发帖框内容。
+   */
+
+  function aiOptimizeDraft(toolbar) {
+    if (!aiCfg || !aiCfg.key) { aiSetup(); return; }
+    const text = composerTyped(toolbar);
+    if (!text) { renderToast('发帖框还是空的，先写点内容再优化'); return; }
+    renderToast('AI 文案优化中…');
+    const sys = '你是资深推文文案优化师。用户发来一条他自己写好的 X（推特）发帖草稿，请完成：\n' +
+      '- 【诊断】用 2~3 条要点指出主要问题（钩子是否抓人、结构、口语感、长度），直接说问题，不客套\n' +
+      '- 【优化版】在保留原意的前提下改写成更抓人的版本，280 字以内，像真人随手打的口语\n' +
+      '- 【备选 A】换一个切入角度或结构的版本\n' +
+      '- 【备选 B】换一种风格的版本（更犀利或更幽默，选与内容更搭的）\n' +
+      '- 严格使用【诊断】【优化版】【备选 A】【备选 B】四个分节标记，节内不要再加小标题或编号\n' +
+      '- 不要 hashtag 堆砌，不要解释改法，不要任何前后缀' +
+      (aiCfg.notes ? '\n- 用户个人风格备注（优先遵循）：' + aiCfg.notes : '');
+    aiCall(sys, text.slice(0, 600), (out, err) => {
+      if (err) { showAiCard('文案优化失败', err, null, null); return; }
+      const secs = parseDraftSections(out);
+      if (secs) {
+        showOptimizeCard('文案优化', secs, toolbar, out);
+      } else {
+        // 模型没按分节格式输出：整卡展示，整体填入兜底
+        showAiCard('文案优化结果', out, '填入发帖框', () => {
+          insertReply(toolbar, out.trim(), (filled) => {
+            if (filled) renderToast('已填入发帖框（原内容已替换），由你审核后发布');
+          });
+        });
+      }
+    });
+  }
+
+  // 按【诊断】【优化版】【备选 A】【备选 B】分节解析；缺优化版视为解析失败
+  function parseDraftSections(out) {
+    const marks = ['【诊断】', '【优化版】', '【备选 A】', '【备选 B】'];
+    const pos = marks.map((mk) => out.indexOf(mk));
+    if (pos[1] === -1) return null;
+    const cut = (i, j) => {
+      if (pos[i] === -1) return '';
+      const end = (j !== undefined && pos[j] !== -1) ? pos[j] : out.length;
+      return out.slice(pos[i] + marks[i].length, end).trim();
+    };
+    const secs = { diag: cut(0, 1), main: cut(1, 2), altA: cut(2, 3), altB: cut(3) };
+    return secs.main ? secs : null;
+  }
+
+  // 优化结果卡片：诊断（纯展示）+ 优化版/备选（各带「填入发帖框」按钮）
+  let optCardEl = null;
+  function showOptimizeCard(title, secs, toolbar, raw) {
+    if (optCardEl) optCardEl.remove();
+    const dark = detectTheme() === 'dark';
+    const c = document.createElement('div');
+    optCardEl = c;
+    c.style.cssText = 'position:fixed;right:20px;bottom:20px;z-index:2147483120;width:400px;max-width:92vw;' +
+      'max-height:70vh;display:flex;flex-direction:column;border-radius:14px;overflow:hidden;' +
+      'box-shadow:0 12px 40px rgba(0,0,0,.35);font-family:inherit;' +
+      (dark ? 'background:#16181c;color:#e7e9ea;border:1px solid rgba(255,255,255,.14);' : 'background:#fff;color:#0f1419;border:1px solid rgba(0,0,0,.1);');
+    const hd = document.createElement('div');
+    hd.style.cssText = 'display:flex;align-items:center;gap:6px;padding:10px 14px;font-weight:700;font-size:13px;border-bottom:1px solid ' + (dark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.08)') + ';';
+    hd.innerHTML = SPARK_SVG + '<span></span><i style="margin-left:auto;cursor:pointer;font-style:normal;opacity:.6;padding:0 4px;">✕</i>';
+    hd.querySelector('span').textContent = title;
+    hd.querySelector('i').addEventListener('click', () => { c.remove(); if (optCardEl === c) optCardEl = null; });
+    const body = document.createElement('div');
+    body.style.cssText = 'padding:10px 12px;overflow-y:auto;font-size:13px;line-height:1.6;display:flex;flex-direction:column;gap:8px;';
+    const addBlock = (label, text, btn) => {
+      if (!text) return;
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border-radius:10px;' +
+        (dark ? 'background:rgba(255,255,255,.05);' : 'background:rgba(0,0,0,.035);');
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'flex:1 1 auto;min-width:0;';
+      const lb = document.createElement('div');
+      lb.style.cssText = 'font-size:11px;font-weight:700;opacity:.55;margin-bottom:3px;letter-spacing:.05em;';
+      lb.textContent = label;
+      const tx = document.createElement('div');
+      tx.style.cssText = 'white-space:pre-wrap;word-break:break-word;';
+      tx.textContent = text;
+      wrap.appendChild(lb); wrap.appendChild(tx);
+      row.appendChild(wrap);
+      if (btn) {
+        const go = document.createElement('button');
+        go.textContent = '填入发帖框';
+        go.style.cssText = 'flex:0 0 auto;padding:5px 10px;border-radius:999px;border:0;cursor:pointer;font-size:12px;font-weight:700;font-family:inherit;white-space:nowrap;' +
+          (btn === 'primary' ? 'background:#1d9bf0;color:#fff;' :
+            (dark ? 'background:rgba(255,255,255,.12);color:#e7e9ea;' : 'background:#eff3f4;color:#0f1419;'));
+        go.addEventListener('click', () => {
+          // insertReply 会先清空编辑框再插入 —— 语义就是「替换」
+          insertReply(toolbar, text, (filled) => {
+            if (filled) renderToast('已填入发帖框（原内容已替换），由你审核后发布');
+          });
+        });
+        row.appendChild(go);
+      }
+      body.appendChild(row);
+    };
+    addBlock('诊断', secs.diag);
+    addBlock('优化版（推荐）', secs.main, 'primary');
+    addBlock('备选 A · 换角度', secs.altA, 'alt');
+    addBlock('备选 B · 换风格', secs.altB, 'alt');
+    const ft = document.createElement('div');
+    ft.style.cssText = 'display:flex;gap:8px;padding:10px 14px;border-top:1px solid ' + (dark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.08)') + ';';
+    const mkBtn = (label, fn) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.style.cssText = 'flex:0 0 auto;padding:6px 14px;border-radius:999px;border:0;cursor:pointer;font-size:12px;font-weight:700;font-family:inherit;' +
+        (dark ? 'background:rgba(255,255,255,.12);color:#e7e9ea;' : 'background:#eff3f4;color:#0f1419;');
+      b.addEventListener('click', fn);
+      return b;
+    };
+    ft.appendChild(mkBtn('复制全部', () => {
+      try { navigator.clipboard.writeText(raw); renderToast('已复制全部内容'); } catch (e) {}
+    }));
+    c.appendChild(hd); c.appendChild(body); c.appendChild(ft);
+    document.documentElement.appendChild(c);
+  }
+
+  // 发帖框专用菜单：文案优化 + 爆帖灵感选题方向（无回复工具/回复风格）
   function openIdeaMenu(btn, toolbar, cx, cy) {
     closeAiMenu();
     document.querySelectorAll('#xam-ai-menu').forEach((el) => { try { el.remove(); } catch (e) {} });
@@ -1751,6 +1869,9 @@
     };
     const hasKey = !!(aiCfg && aiCfg.key);
     if (!hasKey) m.appendChild(mk('⚙ 先设置 AI 接口', aiSetup));
+    cap('文案打磨');
+    m.appendChild(mk('✨ 文案优化', () => aiOptimizeDraft(toolbar)));
+    sep();
     cap(hasKey ? '爆帖灵感' : '爆帖灵感（先配置接口）');
     const grid = document.createElement('div');
     grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:2px;';
