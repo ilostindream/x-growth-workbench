@@ -1441,10 +1441,22 @@
     while (recentReplies.length > 3) recentReplies.shift();
   }
 
-  function aiGenerate(btn, toolbar, st, avoid) {
+  function aiGenerate(btn, toolbar, st, avoid, onDone) {
+    // 所有结束路径（成功/失败/异常）都通知调用方，用于恢复操作条按钮状态。
+    // 幂等 + 35 秒兜底：避免某条路径漏调（如插入锁拦截）导致按钮永久「生成中…」
+    let settled = false;
+    let guard = null;
+    const done = (ok) => {
+      if (settled) return;
+      settled = true;
+      if (guard) clearTimeout(guard);
+      if (typeof onDone === 'function') { try { onDone(!!ok); } catch (e) {} }
+    };
+    guard = setTimeout(() => done(false), 35000);
     const ctx = aiContext(toolbar);
     if (!ctx || !ctx.text) {
       renderToast('没有找到要回复的推文，请在推文详情页/回复框使用');
+      done(false);
       return;
     }
     lastReplyStyle = st;
@@ -1461,19 +1473,20 @@
         { type: 'xam_ai', payload: { system: aiSystemPrompt(st), user: userMsg, useStyle: true } },
         (res) => {
           clearTimeout(slowTimer);
-          btn.textContent = 'AI';
-          btn.style.pointerEvents = '';
+          resetAiBtn(btn);
           if (chrome.runtime.lastError || !res) {
             const msg = (chrome.runtime.lastError && chrome.runtime.lastError.message) || '无响应';
             console.error('[XAM] AI 无响应：', msg);
             showAiCard('AI 调用失败', msg + '\n\n若提示 Extension context invalidated：扩展刚重载过，刷新本页即可。', null, null);
             renderToast('AI 调用失败：' + msg);
+            done(false);
             return;
           }
           if (!res.ok) {
             console.error('[XAM] AI 失败：', res.error);
             showAiCard('AI 请求失败', res.error + '\n\n常见原因：Key 无效 / 余额不足 / 模型名不对 / 网络代理不通。可到设置页点「测试连接」核对。', null, null);
             renderToast('AI 失败：' + res.error);
+            done(false);
             return;
           }
           insertReply(toolbar, res.text, (filled) => {
@@ -1482,15 +1495,16 @@
               renderToast('草稿已填入回复框，请你审核后自行发送');
               showRegenBar(btn, toolbar, st);
             }
+            done(!!filled);
           });
         }
       );
     } catch (e) {
       clearTimeout(slowTimer);
-      btn.textContent = 'AI';
-      btn.style.pointerEvents = '';
+      resetAiBtn(btn);
       console.error('[XAM] AI 调用异常：', e);
       renderToast('AI 调用失败：' + e.message);
+      done(false);
     }
   }
 
@@ -1542,7 +1556,11 @@
       b.textContent = label;
       b.style.cssText = 'padding:6px 14px;border-radius:999px;border:0;cursor:pointer;font-size:12px;font-weight:700;font-family:inherit;white-space:nowrap;' +
         (primary ? 'background:#00ba7c;color:#fff;' : (dark ? 'background:rgba(255,255,255,.12);color:#e7e9ea;' : 'background:#eff3f4;color:#0f1419;'));
-      b.addEventListener('click', () => fn(b));
+      // 回调异常必须可见，否则「点了没反应」无从排查
+      b.addEventListener('click', () => {
+        try { fn(b); }
+        catch (err) { console.error('[XAM] 操作条按钮回调异常：', err); renderToast('操作失败：' + (err && err.message ? err.message : err)); }
+      });
       return b;
     };
     const close = document.createElement('i');
@@ -1553,14 +1571,16 @@
     const expire = setTimeout(() => { bar.remove(); if (regenBarEl === bar) regenBarEl = null; }, 5 * 60 * 1000);
     bar.addEventListener('remove-clean', () => clearTimeout(expire), { once: true });
     bar.appendChild(tip);
-    bar.appendChild(mkBtn('🔄 换一个', false, () => {
+    bar.appendChild(mkBtn('🔄 换一个', false, (b) => {
       const live = document.contains(toolbar) ? toolbar : document.querySelector('div[data-testid="toolBar"]');
       if (!live) { renderToast('回复框已关闭'); bar.remove(); if (regenBarEl === bar) regenBarEl = null; return; }
       b.textContent = '生成中…';
       b.style.pointerEvents = 'none';
-      aiGenerate(genBtn, live, st, recentReplies.slice());
-      // 生成结束后 aiGenerate 会把 genBtn 文案复原，操作条由新的 showRegenBar 重建
-      setTimeout(() => { bar.remove(); if (regenBarEl === bar) regenBarEl = null; }, 300);
+      // 成功后 showRegenBar 会移除本条并重建；失败则保留本条、恢复按钮供重试
+      aiGenerate(genBtn, live, st, recentReplies.slice(), (ok) => {
+        if (!document.contains(bar)) return;
+        if (!ok) { b.textContent = '🔄 换一个'; b.style.pointerEvents = ''; }
+      });
     }));
     bar.appendChild(mkBtn('🚀 一键发布', true, () => {
       const live = document.contains(toolbar) ? toolbar : document.querySelector('div[data-testid="toolBar"]');
