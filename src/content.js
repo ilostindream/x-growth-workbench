@@ -1169,7 +1169,10 @@
     // 校验 Key 并校准模型名：填错模型名是首次配置最常见的失败原因
     try {
       chrome.runtime.sendMessage({ type: 'xam_ai_test', base: b, key: k }, (res) => {
-        if (chrome.runtime.lastError) return;
+        if (chrome.runtime.lastError) {
+          if (ctxInvalidated(chrome.runtime.lastError)) ctxReloadCard();
+          return;
+        }
         if (!res) return;
         if (!res.ok) {
           renderToast('⚠️ Key 校验未通过：' + (res.error || '未知原因') + '（配置已保存，可改完再试）');
@@ -1187,7 +1190,7 @@
           renderToast('✅ Key 有效 · 模型 ' + m + (list.length ? ' · 可用 ' + list.length + ' 个' : ''));
         }
       });
-    } catch (e) {}
+    } catch (e) { if (ctxInvalidated(e)) ctxReloadCard(); }
   }
 
   function saveAiCfg() {
@@ -1477,8 +1480,12 @@
           if (chrome.runtime.lastError || !res) {
             const msg = (chrome.runtime.lastError && chrome.runtime.lastError.message) || '无响应';
             console.error('[XAM] AI 无响应：', msg);
-            showAiCard('AI 调用失败', msg + '\n\n若提示 Extension context invalidated：扩展刚重载过，刷新本页即可。', null, null);
-            renderToast('AI 调用失败：' + msg);
+            if (ctxInvalidated(chrome.runtime.lastError || msg)) {
+              ctxReloadCard();
+            } else {
+              showAiCard('AI 调用失败', msg + '\n\n可到设置页点「测试连接」核对接口。', null, null);
+              renderToast('AI 调用失败：' + msg);
+            }
             done(false);
             return;
           }
@@ -1503,7 +1510,8 @@
       clearTimeout(slowTimer);
       resetAiBtn(btn);
       console.error('[XAM] AI 调用异常：', e);
-      renderToast('AI 调用失败：' + e.message);
+      if (ctxInvalidated(e)) ctxReloadCard();
+      else renderToast('AI 调用失败：' + e.message);
       done(false);
     }
   }
@@ -1597,17 +1605,24 @@
 
   // useStyle 默认 true（创作类任务都要带用户说话风格）；翻译/校对显式传 false
   function aiCall(system, user, cb, useStyle) {
+    const dead = () => {
+      ctxReloadCard();
+      cb(null, '扩展已更新，请刷新页面后重试');
+    };
     try {
       chrome.runtime.sendMessage({ type: 'xam_ai', payload: { system: system, user: user, useStyle: useStyle !== false } }, (res) => {
         if (chrome.runtime.lastError || !res) {
-          cb(null, 'AI 调用失败：' + ((res && res.error) || (chrome.runtime.lastError && chrome.runtime.lastError.message) || '无响应'));
+          const raw = (res && res.error) || (chrome.runtime.lastError && chrome.runtime.lastError.message) || '无响应';
+          if (ctxInvalidated(chrome.runtime.lastError || raw)) { dead(); return; }
+          cb(null, 'AI 调用失败：' + raw);
           return;
         }
         if (!res.ok) { cb(null, 'AI 失败：' + res.error); return; }
         cb(res.text, null);
       });
     } catch (e) {
-      cb(null, 'AI 调用失败：' + e.message);
+      if (ctxInvalidated(e)) dead();
+      else cb(null, 'AI 调用失败：' + e.message);
     }
   }
 
@@ -1646,6 +1661,35 @@
     if (actionLabel && actionFn) ft.appendChild(mkBtn(actionLabel, true, actionFn));
     c.appendChild(hd); c.appendChild(body); c.appendChild(ft);
     document.documentElement.appendChild(c);
+  }
+
+  // 扩展在 chrome://extensions 被「刷新」或更新后，已打开的 X 页面里跑的仍是
+  // 旧一代 content script —— 它与扩展后台的连接已永久断开，所有 chrome.runtime.*
+  // 调用都会抛 "Extension context invalidated"。这不是 Key / 模型 / 网络问题，
+  // 也无法在旧脚本里自愈，唯一修复是刷新页面让新脚本重新注入。
+  function ctxInvalidated(v) {
+    const s = String((v && v.message) || v || '');
+    return /extension context invalidated|extension context/i.test(s);
+  }
+
+  // 幂等：一个页面只提示一次；卡片不自动消失，直到用户刷新或手动关掉
+  function ctxReloadCard() {
+    if (window.__XAM_CTX_DEAD) return;
+    window.__XAM_CTX_DEAD = true;
+    try {
+      showAiCard(
+        '扩展刚更新，请刷新本页',
+        '当前 X 页面运行的还是扩展更新前的旧脚本，它和扩展后台的连接已断开，' +
+        'AI 请求根本发不出去 —— 不是 API Key、模型或网络的问题。\n\n' +
+        '修复方式：\n' +
+        '· 点右下角「🔄 刷新本页」，或按 Ctrl / ⌘ + R\n' +
+        '· 其它已打开的 X 标签页也要各自刷新一次\n\n' +
+        '⚠️ 刷新会清掉正在编辑但尚未发出的草稿，需要的话先手动复制保存。',
+        '🔄 刷新本页',
+        () => { try { location.reload(); } catch (e) {} }
+      );
+    } catch (e) {}
+    try { renderToast('扩展已更新，请刷新页面后重试 AI'); } catch (e) {}
   }
 
   function aiRewrite(toolbar) {
