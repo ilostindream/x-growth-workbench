@@ -23,11 +23,11 @@
   const META_KEY = 'xam_meta_v1';
   const KINDS = ['post', 'reply', 'rt'];
 
-  /* ---------- 附加元数据：流速热度 / 账号备注 / 改名记录 ----------
-   * 独立于统计数据存储：热度与改名不限于「今天」，备注由设置页维护。
+  /* ---------- 附加元数据：流速热度 / 账号备注 ----------
+   * 独立于统计数据存储：热度不限于「今天」，备注由设置页维护。
    * 写入走读-合并-写，与设置页/其他标签页共存。
    */
-  let meta = { heat: {}, notes: {}, names: {}, media: {}, rel: {} };
+  let meta = { heat: {}, notes: {}, media: {}, rel: {} };
   let metaSaveTimer = null;
 
   function scheduleMetaSave() {
@@ -40,13 +40,13 @@
 
   function persistMeta() {
     // 所有页签（含同步页）统一走后台串行合并：后台单线程读-合并-写，
-    // 既修掉「同步页抓到的 rel/heat/media/names 被丢弃」的黑洞，也消灭多页签写竞争
+    // 既修掉「同步页抓到的 rel/heat/media 被丢弃」的黑洞，也消灭多页签写竞争
     pruneHeat();
     pruneMedia();
     try {
       chrome.runtime.sendMessage({
         type: 'xam_meta_merge',
-        meta: { heat: meta.heat, notes: meta.notes, names: meta.names, media: meta.media, rel: meta.rel }
+        meta: { heat: meta.heat, notes: meta.notes, media: meta.media, rel: meta.rel }
       });
     } catch (e) {
       log('meta 合并发送失败', e);
@@ -70,31 +70,11 @@
     for (let i = 0; i < drop.length; i++) delete meta.media[drop[i]];
   }
 
-  // 改名检测：与上次见到的显示名不同时记为曾用名（借鉴 XHunt，纯本地实现）
-  function trackName(h, name) {
-    if (!h || !name) return;
-    const n = String(name);
-    const cur = meta.names[h];
-    if (!cur) {
-      meta.names[h] = { cur: n, prev: [] };
-      scheduleMetaSave();
-      return;
-    }
-    if (cur.cur !== n) {
-      const prev = (cur.prev || []).slice();
-      if (prev.indexOf(cur.cur) === -1) prev.unshift(cur.cur);
-      if (prev.length > 5) prev.length = 5;
-      meta.names[h] = { cur: n, prev: prev };
-      scheduleMetaSave();
-      scheduleScan(0);   // 时间线上的曾用名标记需要更新
-    }
-  }
-
   function loadMeta() {
     try {
       chrome.storage.local.get([META_KEY], (res) => {
         const m = res && res[META_KEY];
-        if (m) meta = { heat: m.heat || {}, notes: m.notes || {}, names: m.names || {}, media: m.media || {}, rel: m.rel || {} };
+        if (m) meta = { heat: m.heat || {}, notes: m.notes || {}, media: m.media || {}, rel: m.rel || {} };
         scheduleScan(0);
       });
     } catch (e) {}
@@ -106,7 +86,7 @@
       if (area !== 'local' || !ch[META_KEY]) return;
       const nv = ch[META_KEY].newValue;
       if (!nv) return;
-      meta = { heat: nv.heat || {}, notes: nv.notes || {}, names: nv.names || {}, media: nv.media || {}, rel: nv.rel || {} };
+      meta = { heat: nv.heat || {}, notes: nv.notes || {}, media: nv.media || {}, rel: nv.rel || {} };
       scheduleScan(0);
     });
   } catch (e) {}
@@ -123,7 +103,7 @@
       autoSync: true, autoGap: 5000, autoParallel: 3, autoTTL: 15, autoMax: 60,
       selfHandle: '',
       relEnabled: true, relPos: 'name', relItems: null,
-      showHeat: true, hideAds: false, showNotes: true, showNameHistory: true, collectMedia: true,
+      showHeat: true, hideAds: false, showNotes: true, collectMedia: true,
       debug: false
     };
 
@@ -205,7 +185,6 @@
       const u = list[i];
       if (!u || !u.handle) continue;
       const h = String(u.handle).toLowerCase();
-      trackName(h, u.name);
       const a = state.authors[h];
       if (!a) continue;                 // 只为已进入统计的人补数据
       if (typeof u.fc === 'number' && a.fc !== u.fc) { a.fc = u.fc; n++; }
@@ -270,8 +249,6 @@
       meta.heat[String(it.id)] = { h: h, ts: it.ts, v: it.views };
       scheduleMetaSave();
     }
-    // 改名记录
-    trackName(h, it.name);
     // 媒体收集（图片原图 / 视频最高码率 mp4），供设置页批量下载
     if (S.collectMedia !== false && Array.isArray(it.media) && it.media.length) {
       for (let i = 0; i < it.media.length; i++) {
@@ -821,7 +798,6 @@
       }
       relMarker(art, hl);
       noteMarker(art, hl);
-      nameHistMarker(art, hl);
       heatMarker(art);
       adFilter(art);
       recordFromDom(art, handle);
@@ -865,32 +841,7 @@
     if (un) un.appendChild(el);
   }
 
-  // ② 改名记录标记（借鉴 XHunt，本地实现）
-  function nameHistMarker(art, h) {
-    let el = art.querySelector('.xam-namehist');
-    const n = S.showNameHistory ? meta.names[h] : null;
-    if (!n || !n.prev || !n.prev.length) {
-      if (el) el.remove();
-      return;
-    }
-    if (el && el.dataset.k === h + '|' + n.prev.join(',')) return;
-    if (el) el.remove();
-    const first = n.prev[0] || '';
-    const short = first.length > 10 ? first.slice(0, 10) + '…' : first;
-    el = document.createElement('span');
-    el.className = 'xam-namehist';
-    el.dataset.k = h + '|' + n.prev.join(',');
-    el.textContent = '曾名 ' + short;
-    el.title = '@' + h + ' 的曾用名：' + n.prev.join('、') + '（现为「' + n.cur + '」）';
-    el.style.cssText = 'display:inline-flex;margin-left:4px;max-width:150px;overflow:hidden;text-overflow:ellipsis;' +
-      'white-space:nowrap;padding:1px 6px;border-radius:5px;font-size:10px;font-weight:600;line-height:14px;' +
-      'color:#8899a6;background:rgba(136,153,166,.14);border:1px dashed rgba(136,153,166,.5);' +
-      'vertical-align:middle;pointer-events:none;font-family:inherit;flex:0 0 auto;';
-    const un = art.querySelector('[data-testid="User-Name"]');
-    if (un) un.appendChild(el);
-  }
-
-  // ③ 流速勋章：推文右上角显示平均每小时浏览量（BlueV 同款思路）
+  // ② 流速勋章：推文右上角显示平均每小时浏览量（BlueV 同款思路）
   function fmtVph(v) {
     if (v < 10) return v.toFixed(1).replace(/\.0$/, '');
     if (v < 10000) return String(Math.round(v));
@@ -942,7 +893,7 @@
     }
   }
 
-  // ④ 广告过滤（BlueV 同款，默认关）：隐藏带广告标记的推文
+  // ③ 广告过滤（BlueV 同款，默认关）：隐藏带广告标记的推文
   const AD_LABELS = { '广告': 1, '推广': 1, 'Promoted': 1, 'Sponsored': 1, 'プロモーション': 1 };
 
   function isAdArticle(art) {
@@ -2381,104 +2332,6 @@
     });
   } catch (e) {}
 
-  /* ---------- 限流检测：后台临时标签页内的本地采集 ----------
-   * 只读取当前页面 DOM，不调用任何外部接口、不上传数据。
-   * 采集失败一律返回「无法判定」，绝不把读取失败当成「正常」。
-   */
-  function limitParseCount(s) {
-    if (!s) return null;
-    const m = String(s).replace(/,/g, '').match(/([\d.]+)\s*([KkMm万]?)/);
-    if (!m) return null;
-    let n = parseFloat(m[1]);
-    if (!isFinite(n)) return null;
-    if (/[Kk]/.test(m[2])) n *= 1e3;
-    else if (/[Mm]/.test(m[2])) n *= 1e6;
-    else if (m[2] === '万') n *= 1e4;
-    return Math.round(n);
-  }
-
-  function limitProfileData(handle) {
-    const body = (document.body && document.body.innerText) || '';
-    let state = 'unknown';
-    if (/Account suspended|已被停用|账号已停用|has been suspended/i.test(body)) state = 'suspended';
-    else if (/doesn'?t exist|账号不存在|用户不存在|does not exist/i.test(body)) state = 'missing';
-    else if (document.querySelector('[data-testid="primaryColumn"]') ||
-             document.querySelector('article[data-testid="tweet"]')) state = 'ok';
-    const isProtected = /These posts are protected|这些帖子受保护|受保护的帖子/i.test(body);
-
-    let followers = null;
-    const fl = document.querySelector('a[href$="/followers"], a[href*="/followers"]');
-    if (fl) followers = limitParseCount(fl.getAttribute('aria-label') || fl.textContent || '');
-
-    const arts = Array.prototype.slice.call(
-      document.querySelectorAll('article[data-testid="tweet"]')
-    ).slice(0, 12);
-    const engs = [];
-    arts.forEach((art) => {
-      const grp = art.querySelector('div[role="group"]');
-      if (!grp) return;
-      const read = (id) => {
-        const el = grp.querySelector('[data-testid="' + id + '"]');
-        if (!el) return 0;
-        return limitParseCount(el.getAttribute('aria-label') || el.innerText || '') || 0;
-      };
-      const sum = read('reply') + read('retweet') + read('like');
-      if (sum > 0) engs.push(sum);
-    });
-    const avgEng = engs.length
-      ? Math.round(engs.reduce((a, b) => a + b, 0) / engs.length) : null;
-    const ownTweets = arts.filter((a) =>
-      a.querySelector('a[href^="/' + handle + '/status/"]')).length;
-    return {
-      ok: true, task: 'profile', state: state, protected: isProtected,
-      followers: followers, visibleTweets: arts.length, ownTweets: ownTweets,
-      avgEng: avgEng, engSamples: engs.length
-    };
-  }
-
-  function limitSearchData(handle) {
-    const body = (document.body && document.body.innerText) || '';
-    const arts = Array.prototype.slice.call(
-      document.querySelectorAll('article[data-testid="tweet"]')
-    );
-    const ownHits = arts.filter((a) =>
-      a.querySelector('a[href^="/' + handle + '/status/"]')).length;
-    return {
-      ok: true, task: 'search', resultCount: arts.length, ownHits: ownHits,
-      noResult: /No results for|没有找到|没有结果|Try searching for/i.test(body),
-      error: /Something went wrong|出错了|Try again|重试/i.test(body)
-    };
-  }
-
-  function limitProbe(task, handle) {
-    return new Promise((resolve) => {
-      const started = Date.now();
-      const tick = () => {
-        const body = (document.body && document.body.innerText) || '';
-        const arts = document.querySelectorAll('article[data-testid="tweet"]').length;
-        const ready = arts > 0 ||
-          /Account suspended|doesn'?t exist|账号不存在|No results|没有结果|Something went wrong|出错了/i.test(body);
-        if (ready || Date.now() - started > 12000) {
-          resolve(task === 'search' ? limitSearchData(handle) : limitProfileData(handle));
-          return;
-        }
-        setTimeout(tick, 600);
-      };
-      tick();
-    });
-  }
-
-  try {
-    chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-      if (!msg || msg.type !== 'xam_limit_probe') return;
-      limitProbe(msg.task, msg.handle)
-        .then((r) => sendResponse(r))
-        .catch((e) => sendResponse({ ok: false, error: String((e && e.message) || e) }));
-      return true;   // 异步响应
-    });
-  } catch (e) {}
-
-
   // 滚动感知：用户滚动期间完全不扫描。
   // 停在顶部时 X 会持续拉流新推文，MutationObserver 高频触发全量扫描，
   // 每条推文多次写 DOM 造成主线程饱和，滚轮事件得不到处理 → 表现为「滚不动、卡在顶部」
@@ -3247,7 +3100,7 @@
         }
         chrome.runtime.sendMessage({ type: 'xam_merge', authors: authors, self: state.self });
       } catch (e) {}
-      persistMeta();   // 立即落盘 meta（rel/heat/media/names），不等 900ms 防抖——本页随时会被关闭
+      persistMeta();   // 立即落盘 meta（rel/heat/media），不等 900ms 防抖——本页随时会被关闭
       const close = () => {
         try { chrome.runtime.sendMessage({ type: 'xam_close_self' }); } catch (e) {}
       };
@@ -3330,7 +3183,7 @@
     state.ui.auto = S.autoSync;
     refreshAutoLink();
     if (!S.showBadge) {
-      // 只清徽章；互关/备注/曾用名标记由各自函数在下次扫描时按设置自行增删
+      // 只清徽章；互关/备注标记由各自函数在下次扫描时按设置自行增删
       const bs = document.querySelectorAll('.xam-badge');
       for (let i = 0; i < bs.length; i++) bs[i].remove();
     }
@@ -3369,7 +3222,7 @@
       for (let i = 0; i < muts.length; i++) {
         const t = muts[i].target;
         if (t && t.nodeType === 1 && t.closest &&
-          t.closest('.xam-badge, .xam-rel, .xam-note, .xam-namehist, .xam-heat, .xam-ai-btn, .xam-bk-btn')) continue;
+          t.closest('.xam-badge, .xam-rel, .xam-note, .xam-heat, .xam-ai-btn, .xam-bk-btn')) continue;
         scheduleScan(150);
         return;
       }

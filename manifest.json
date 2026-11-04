@@ -1,12 +1,12 @@
 {
   "manifest_version": 3,
   "name": "X 发展工作台",
-  "version": "1.9.10",
+  "version": "1.9.11",
   "action": {
     "default_popup": "src/popup.html",
     "default_title": "X 发展工作台 · 互关标记 · 媒体备份"
   },
-  "description": "X 发展工作台：发评转统计与活跃排行、粉丝与互关标记、流速勋章、账号备注、改名记录、AI 回复/仿写/翻译/校对、爆帖灵感选题、推文海报、媒体批量备份（原图/视频/zip/CSV）。数据全部本地。",
+  "description": "X 发展工作台：发评转统计与活跃排行、粉丝与互关标记、流速勋章、账号备注、AI 回复/仿写/翻译/校对、爆帖灵感选题、推文海报、媒体批量备份（原图/视频/zip/CSV）。数据全部本地。",
   "minimum_chrome_version": "111",
   "permissions": [
     "storage",

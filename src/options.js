@@ -89,7 +89,6 @@
     $('showHeat').checked = s.showHeat;
     $('hideAds').checked = s.hideAds;
     $('showNotes').checked = s.showNotes;
-    $('showNameHistory').checked = s.showNameHistory;
     $('collectMedia').checked = s.collectMedia;
     $('bkBtn').checked = s.bkBtn;
     $('bkFab').checked = s.bkFab;
@@ -126,7 +125,6 @@
   bindToggle('showHeat', 'showHeat');
   bindToggle('hideAds', 'hideAds');
   bindToggle('showNotes', 'showNotes');
-  bindToggle('showNameHistory', 'showNameHistory');
   bindToggle('collectMedia', 'collectMedia');
   // 媒体备份
   bindToggle('bkBtn', 'bkBtn');
@@ -663,176 +661,10 @@
   });
   loadBkHist();
 
-  /* ---------- 限流检测 ---------- */
-  const LIM_KEY = 'xam_limit_history_v1';
-  const limHandle = $('limitHandle');
-  const limStatus = $('limitStatus');
-  const limResult = $('limitResult');
-  let limBusy = false;
-  let selfHandle = '';
-
-  // esc / fmtTs 复用文件上方已有的实现（下载历史区）
-  const fmtNum = (n) => n == null ? '—' : (n >= 10000 ? (n / 10000).toFixed(1) + '万' : String(n));
-  const cleanHandle = () => (limHandle.value || '').trim().replace(/^@/, '');
-  const validHandle = (h) => /^[A-Za-z0-9_]{1,15}$/.test(h);
-
-  try {
-    chrome.storage.local.get([DATA_KEY], (res) => {
-      const d = res && res[DATA_KEY];
-      selfHandle = (d && d.self) || '';
-      if (selfHandle && !limHandle.value) limHandle.value = selfHandle;
-    });
-  } catch (e) {}
-
-  function limitReadHistory(handle, cb) {
-    try {
-      chrome.storage.local.get([LIM_KEY], (res) => {
-        const all = (res && res[LIM_KEY]) || {};
-        cb(Array.isArray(all[handle]) ? all[handle] : []);
-      });
-    } catch (e) { cb([]); }
-  }
-  function limitSaveHistory(handle, snap, cb) {
-    try {
-      chrome.storage.local.get([LIM_KEY], (res) => {
-        const all = (res && res[LIM_KEY]) || {};
-        const arr = Array.isArray(all[handle]) ? all[handle].slice() : [];
-        arr.push(snap);
-        while (arr.length > 30) arr.shift();
-        all[handle] = arr;
-        chrome.storage.local.set({ [LIM_KEY]: all }, () => cb(arr));
-      });
-    } catch (e) { cb([snap]); }
-  }
-  function limitTrendHtml(arr) {
-    const rows = arr.slice(-8);
-    if (!rows.length) return '';
-    const max = Math.max.apply(null, rows.map((r) => r.engRate || 0).concat([0.0001]));
-    const bars = rows.map((r) => {
-      const w = r.engRate ? Math.max(2, Math.round(r.engRate / max * 100)) : 0;
-      return '<div class="limit-trow"><span class="limit-tt">' + esc(fmtTs(r.ts)) + '</span>' +
-        '<span class="limit-tbar"><i style="width:' + w + '%"></i></span>' +
-        '<span class="limit-tv">' + (r.engRate != null ? (r.engRate * 100).toFixed(2) + '%' : '—') + '</span></div>';
-    }).join('');
-    return '<div class="limit-trend"><b>互动率历史（本机保存，最近 ' + rows.length + ' 次）</b>' + bars + '</div>';
-  }
-
-  // 纯判定逻辑：读取失败一律 unknown，绝不把「无法检测」算作通过
-  function limitAnalyze(handle, p, s, snap, histAfter) {
-    const items = [];
-    if (!p.ok) items.push(['账号可达性', 'unknown', '个人页读取失败：' + (p.error || '未知原因')]);
-    else if (p.state === 'suspended') items.push(['账号可达性', 'bad', '页面显示账号已被停用']);
-    else if (p.state === 'missing') items.push(['账号可达性', 'bad', '页面显示账号不存在']);
-    else if (p.state === 'ok') items.push(['账号可达性', 'ok', '个人页正常，可见 ' + p.visibleTweets + ' 条推文' + (p.protected ? '（受保护账号）' : '')]);
-    else items.push(['账号可达性', 'unknown', '页面未就绪，无法判定']);
-
-    const hasTweets = p.ok && p.visibleTweets > 0;
-    if (!s.ok) items.push(['搜索可见性', 'unknown', '搜索页读取失败：' + (s.error || '未知原因')]);
-    else if (s.error) items.push(['搜索可见性', 'unknown', 'X 搜索页报错，无法判定']);
-    else if (s.ownHits > 0) items.push(['搜索可见性', 'ok', 'from:' + handle + ' 命中 ' + s.ownHits + ' 条近期推文']);
-    else if (hasTweets) items.push(['搜索可见性', 'bad', '个人页有推文，但搜索无命中 → 疑似搜索限制']);
-    else items.push(['搜索可见性', 'unknown', '未发现近期推文，不判异常（无帖账号不适用此项）']);
-
-    if (snap.engRate != null) {
-      const prev = histAfter.length >= 2 ? histAfter[histAfter.length - 2].engRate : null;
-      let d = '粉丝 ' + fmtNum(p.followers) + ' · 近期平均互动 ' + fmtNum(p.avgEng) +
-        ' · 互动率 ' + (snap.engRate * 100).toFixed(2) + '%（' + p.engSamples + ' 条采样）';
-      if (prev != null && prev > 0) {
-        const chg = (snap.engRate - prev) / prev;
-        d += chg < -0.5 ? ' · 较上次下降 ' + Math.round(-chg * 100) + '%，触达走低'
-                        : ' · 较上次 ' + (chg >= 0 ? '+' : '') + Math.round(chg * 100) + '%';
-      } else d += ' · 已记录为基线，多次检测后可看趋势';
-      items.push(['互动率（参考）', 'info', d]);
-    } else {
-      items.push(['互动率（参考）', 'unknown', '未能读取粉丝数或互动数（X 改版或后台标签页被节流），不判异常']);
-    }
-
-    const bad = items.some((i) => i[1] === 'bad');
-    const unknown = items.some((i) => i[1] === 'unknown');
-    const verdict = bad
-      ? ['suspect', '疑似受限', '至少一项可见性检查异常，建议匿名复核']
-      : unknown ? ['unknown', '无法判定', '部分检查未能完成，不能据此认为账号正常']
-                : ['ok', '未发现异常', '本次可测项目未发现受限迹象'];
-    return { items: items, verdict: verdict };
-  }
-
-  function renderLimitResult(handle, res, histAfter, snap) {
-    const a = limitAnalyze(handle, res.profile || {}, res.search || {}, snap, histAfter);
-    const items = a.items, verdict = a.verdict;
-    const selfTip = (selfHandle && handle.toLowerCase() === String(selfHandle).toLowerCase())
-      ? '<p class="limit-warn">你正在检测自己的账号：登录态视角会把自己的内容优先展示，结果偏乐观。请在无痕窗口点「打开匿名复核」交叉验证。</p>' : '';
-    const rows = items.map((i) =>
-      '<div class="limit-item"><i class="limit-dot ' + i[1] + '"></i>' +
-      '<div><b>' + esc(i[0]) + '</b><span>' + esc(i[2]) + '</span></div></div>').join('');
-    limResult.innerHTML =
-      '<div class="limit-verdict ' + verdict[0] + '"><b>' + verdict[1] + '</b><span>' +
-      esc(verdict[2]) + ' · ' + esc(fmtTs(res.checkedAt || Date.now())) + '</span></div>' +
-      selfTip + '<div class="limit-items">' + rows + '</div>' + limitTrendHtml(histAfter) +
-      '<p class="note">检测视角：当前浏览器已登录会话 · 临时标签页已自动关闭 · 数据仅存本机。</p>';
-    limResult.hidden = false;
-  }
-
-  $('limitRun').addEventListener('click', () => {
-    const h = cleanHandle();
-    if (!validHandle(h)) { limStatus.textContent = '请输入合法的 X 用户名（字母 / 数字 / 下划线，1～15 位，不带 @）'; return; }
-    if (limBusy) return;
-    limBusy = true;
-    $('limitRun').disabled = true;
-    $('limitRun').textContent = '检测中…';
-    limResult.hidden = true;
-    limStatus.textContent = '正在后台读取个人页与搜索页，约需 10～40 秒…';
-    try {
-      chrome.runtime.sendMessage({ type: 'xam_limit_check', handle: h }, (res) => {
-        limBusy = false;
-        $('limitRun').disabled = false;
-        $('limitRun').textContent = '开始检测';
-        const err = chrome.runtime.lastError;
-        if (err || !res || !res.ok) {
-          limStatus.textContent = '检测失败：' + ((res && res.error) || (err && err.message) || '无响应');
-          return;
-        }
-        const p = res.profile || {}, s = res.search || {};
-        const engRate = (p.followers && p.avgEng != null) ? p.avgEng / p.followers : null;
-        const snap = {
-          ts: res.checkedAt || Date.now(), followers: p.followers || null,
-          avgEng: p.avgEng != null ? p.avgEng : null, engRate: engRate,
-          tweetCount: p.visibleTweets || 0, ownHits: s.ownHits || 0
-        };
-        limitReadHistory(h, (hist) => {
-          renderLimitResult(h, res, hist.concat([snap]).slice(-30), snap);
-          limitSaveHistory(h, snap, () => {});
-          limStatus.textContent = '检测完成。';
-        });
-      });
-    } catch (e) {
-      limBusy = false;
-      $('limitRun').disabled = false;
-      $('limitRun').textContent = '开始检测';
-      limStatus.textContent = '检测失败：' + e.message;
-    }
-  });
-
-  $('limitAnon').addEventListener('click', () => {
-    const h = cleanHandle();
-    if (!validHandle(h)) { limStatus.textContent = '请先填写合法的 X 用户名'; return; }
-    try {
-      chrome.runtime.sendMessage({
-        type: 'xam_open_tab', active: true,
-        url: 'https://x.com/search?q=' + encodeURIComponent('from:' + h) + '&src=typed_query&f=live'
-      });
-    } catch (e) {}
-    limStatus.textContent = '已打开搜索页。若要客观自查，请复制该链接到无痕窗口（未登录）打开，确认推文是否出现，并在搜索框输入用户名看是否出现在建议里。';
-  });
-
-  $('limitClear').addEventListener('click', () => {
-    if (!window.confirm('清除所有账号的本机检测历史快照？当前显示的结果不受影响。')) return;
-    try { chrome.storage.local.remove([LIM_KEY], () => { limStatus.textContent = '历史已清除。'; }); } catch (e) {}
-  });
-
   /* ---------- 侧栏导航 + 卡片手风琴（一次只展开一个，BlueV 同款） ---------- */
   const links = Array.prototype.slice.call(document.querySelectorAll('#nav a'));
   const secs = links.map((a) => document.querySelector(a.getAttribute('href')));
-  const GROUP_NAMES = ['时间线统计', '时间线增强', '媒体备份', '统计与同步', 'AI 助手', '限流检测', '数据', '关于'];
+  const GROUP_NAMES = ['时间线统计', '时间线增强', '媒体备份', '统计与同步', 'AI 助手', '数据', '关于'];
 
   function activate(i) {
     links.forEach((a, k) => a.classList.toggle('on', k === i));

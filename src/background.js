@@ -87,9 +87,9 @@ async function mergeIntoStorage(authors, self) {
   });
 }
 
-/* meta（rel/heat/media/notes/names）串行合并。
- * 布尔关系用「新值非 null 才覆盖」；names.prev 取并集（上限 5）；
- * heat/media 超限按 ts 淘汰。notes 整体按键覆盖。 */
+/* meta（rel/heat/media/notes）串行合并。
+ * 布尔关系用「新值非 null 才覆盖」；heat/media 超限按 ts 淘汰。
+ * notes 整体按键覆盖。 */
 const HEAT_CAP = 3200;
 const MEDIA_CAP = 400;
 
@@ -120,98 +120,17 @@ async function mergeMetaIntoStorage(delta) {
   const base = (res && res[META_KEY]) || {};
   const d = delta || {};
 
-  // 改名记录深合并：prev 数组取并集（最多保留 5 个曾用名）
-  const names = Object.assign({}, base.names);
-  const dn = d.names || {};
-  for (const k in dn) {
-    const a = names[k];
-    const b = dn[k];
-    if (!b || typeof b !== 'object') continue;
-    if (!a) { names[k] = { cur: b.cur, prev: (b.prev || []).slice(0, 5) }; continue; }
-    const prev = (a.prev || []).slice();
-    (b.prev || []).forEach((p) => { if (prev.indexOf(p) === -1) prev.push(p); });
-    if (prev.length > 5) prev.length = 5;
-    names[k] = { cur: b.cur || a.cur, prev: prev };
-  }
-
   const out = {
     heat: capByTs(Object.assign({}, base.heat, d.heat || {}), HEAT_CAP),
     media: capByTs(Object.assign({}, base.media, d.media || {}), MEDIA_CAP),
     notes: Object.assign({}, base.notes, d.notes || {}),
-    rel: mergeRelMap(base.rel || {}, d.rel || {}),
-    names: names
+    rel: mergeRelMap(base.rel || {}, d.rel || {})
   };
   await chrome.storage.local.set({ [META_KEY]: out });
 }
 
-/* ---------- 限流检测：后台临时标签页 + 登录态本地采集 ----------
- * 不请求任何第三方服务，不新增主机权限；检测完立即关闭临时标签。
- * X 的匿名 guest/typeahead 接口已失效（401/403），因此这里只能用已登录会话视角，
- * 自查结果偏乐观，结论一律以三态（未发现异常 / 疑似受限 / 无法判定）呈现。
- */
-function limitProbeTab(url, task, handle) {
-  return new Promise((resolve) => {
-    let tabId = null, settled = false, probed = false;
-    let timer = null, retryTimer = null, kickTimer = null;
-    const cleanup = (result) => {
-      if (settled) return;
-      settled = true;
-      if (timer) clearTimeout(timer);
-      if (retryTimer) clearTimeout(retryTimer);
-      if (kickTimer) clearTimeout(kickTimer);
-      try { chrome.tabs.onUpdated.removeListener(onUpdated); } catch (e) {}
-      if (tabId !== null) chrome.tabs.remove(tabId, () => void chrome.runtime.lastError);
-      resolve(result);
-    };
-    const probe = (attempt) => {
-      if (settled) return;
-      chrome.tabs.sendMessage(tabId, { type: 'xam_limit_probe', task: task, handle: handle }, (res) => {
-        if (settled) return;
-        if (chrome.runtime.lastError || !res) {
-          if (attempt < 16) retryTimer = setTimeout(() => probe(attempt + 1), 500);
-          else cleanup({ ok: false, error: '页面未就绪或未加载内容' });
-          return;
-        }
-        cleanup(res);
-      });
-    };
-    const startProbe = () => { if (probed || settled) return; probed = true; probe(0); };
-    const onUpdated = (id, info) => {
-      if (id !== tabId || info.status !== 'complete' || settled) return;
-      startProbe();
-    };
-    chrome.tabs.onUpdated.addListener(onUpdated);
-    chrome.tabs.create({ url: url, active: false }, (tab) => {
-      if (chrome.runtime.lastError || !tab || tab.id == null) {
-        cleanup({ ok: false, error: '无法创建后台标签页' });
-        return;
-      }
-      tabId = tab.id;
-      // 兜底：某些 SPA 页面 complete 事件早于监听器注册，主动补一次
-      kickTimer = setTimeout(startProbe, 900);
-    });
-    timer = setTimeout(() => cleanup({ ok: false, error: '检测超时（30 秒）' }), 30000);
-  });
-}
-
-async function runLimitCheck(handle) {
-  const profile = await limitProbeTab('https://x.com/' + encodeURIComponent(handle), 'profile', handle);
-  const search = await limitProbeTab(
-    'https://x.com/search?q=' + encodeURIComponent('from:' + handle) + '&src=typed_query&f=live',
-    'search', handle
-  );
-  return { ok: true, handle: handle, profile: profile, search: search, checkedAt: Date.now() };
-}
-
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || typeof msg !== 'object') return;
-
-  if (msg.type === 'xam_limit_check' && typeof msg.handle === 'string') {
-    runLimitCheck(msg.handle)
-      .then((r) => sendResponse(r))
-      .catch((e) => sendResponse({ ok: false, error: String((e && e.message) || e) }));
-    return true;
-  }
 
   if (msg.type === 'xam_open_tab' && typeof msg.url === 'string' &&
       /^https:\/\/(x|twitter)\.com\//.test(msg.url)) {
@@ -263,7 +182,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg.type === 'xam_meta_merge' && msg.meta && typeof msg.meta === 'object') {
-    // meta（rel/heat/media/names/notes）统一在此串行合并：
+    // meta（rel/heat/media/notes）统一在此串行合并：
     // 同步页抓到的关系数据以前被「同步页不落盘」守卫直接丢弃，现在与推文同路入库
     writeChain = writeChain
       .then(() => mergeMetaIntoStorage(msg.meta))

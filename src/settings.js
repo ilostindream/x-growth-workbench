@@ -36,11 +36,10 @@
       none:     { on: true, color: '#8899a6' },   // 无关注
       self:     { on: true, color: '#f7b500' }    // 本尊（自己）
     },
-    // 时间线增强（借鉴 BlueV / XHunt 的广受欢迎功能）
+    // 时间线增强（借鉴 BlueV 的广受欢迎功能）
     showHeat: true,           // 流速勋章：推文右上角显示平均每小时浏览量
     hideAds: false,           // 隐藏带广告标记的推文（BlueV 同款默认关）
     showNotes: true,          // 时间线上显示账号备注色标
-    showNameHistory: true,    // 改名记录标记（借鉴 XHunt，本地实现）
     collectMedia: true,       // 收集时间线里的图片/视频原始地址，供批量下载
     // 媒体备份（借鉴 MediaHarvest / X Content Backup Tool 的全功能集）
     bkFab: true,              // 时间线右侧悬浮批量下载按钮
@@ -118,7 +117,6 @@
     s.showHeat = s.showHeat !== false;
     s.hideAds = !!s.hideAds;
     s.showNotes = s.showNotes !== false;
-    s.showNameHistory = s.showNameHistory !== false;
     s.collectMedia = s.collectMedia !== false;
     // 媒体备份
     s.bkFab = s.bkFab !== false;
