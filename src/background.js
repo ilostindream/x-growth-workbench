@@ -420,11 +420,23 @@ async function callLLM(p) {
   const isDS = /deepseek\.com/i.test(base);
   const model = cfg.model || DEFAULT_MODEL;
 
+  // 风格备注统一兜底：后台每次调用都从 storage 读最新配置，
+  // 内容脚本里的 aiCfg 可能过期（X 是 SPA，页面长期不刷新），以此处为准。
+  // 仅对 useStyle 任务生效（翻译/校对不带，避免把口语粗口带进译文）。
+  const STYLE_MARK = '【说话风格·最高优先级】';
+  let system = p.system || '';
+  if (p.useStyle && cfg.notes && system.indexOf(STYLE_MARK) === -1) {
+    system += '\n\n' + STYLE_MARK + '\n用户的说话风格设定：' + cfg.notes + '\n' +
+      '这是最高优先级约束，输出必须明显体现：语气、句长、用词习惯都要跟着它走，不要输出中性、书面化或客服腔的默认文案。' +
+      '若设定中包含粗口偏好，允许使用轻度口语粗口来表达情绪，但不得出现辱骂、歧视或人身攻击。' +
+      '若与「只输出内容本身」等格式要求冲突，格式要求仍优先。';
+  }
+
   function buildBody(m) {
     const b = {
       model: m,
       messages: [
-        { role: 'system', content: p.system },
+        { role: 'system', content: system },
         { role: 'user', content: p.user }
       ],
       max_tokens: 400

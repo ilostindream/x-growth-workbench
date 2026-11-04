@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "X 发展工作台",
-  "version": "1.9.6",
+  "version": "1.9.7",
   "action": {
     "default_popup": "src/popup.html",
     "default_title": "X 发展工作台 · 互关标记 · 媒体备份"

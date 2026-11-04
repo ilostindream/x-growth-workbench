@@ -990,6 +990,26 @@
   const AI_DEFAULT_MODEL = 'deepseek-flash';
   let aiCfg = {};
 
+  // 说话风格备注：统一生成「最高优先级」硬约束块。
+  // 后台 callLLM 也用同样的 STYLE_MARK 做兜底注入与去重——页面 aiCfg 过期时由后台补上。
+  const STYLE_MARK = '【说话风格·最高优先级】';
+  function styleNotes(notes) {
+    if (!notes) return '';
+    return '\n\n' + STYLE_MARK + '\n用户的说话风格设定：' + notes + '\n' +
+      '这是最高优先级约束，输出必须明显体现：语气、句长、用词习惯都要跟着它走，不要输出中性、书面化或客服腔的默认文案。' +
+      '若设定中包含粗口偏好，允许使用轻度口语粗口来表达情绪，但不得出现辱骂、歧视或人身攻击。' +
+      '若与「只输出内容本身」等格式要求冲突，格式要求仍优先。';
+  }
+
+  // 设置页保存配置后，已打开的 X 页面（SPA 常驻不刷新）也要立刻同步，
+  // 否则 aiCfg.notes 一直是页面加载时的旧值，风格指令根本不会拼进提示词
+  try {
+    chrome.storage.onChanged.addListener((ch, area) => {
+      if (area !== 'local' || !ch[AI_CFG_KEY]) return;
+      aiCfg = ch[AI_CFG_KEY].newValue || {};
+    });
+  } catch (e) {}
+
   // 按钮样式：浅灰胶囊「✨ AI」（用户指定参照样式），随 X 明暗主题换色
   const SPARK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
     '<path d="M12 2l1.9 5.6c.3.9 1 1.6 1.9 1.9L21.4 12l-5.6 1.9c-.9.3-1.6 1-1.9 1.9L12 21.4l-1.9-5.6c-.3-.9-1-1.6-1.9-1.9L2.6 12l5.6-1.9c.9-.3 1.6-1 1.9-1.9L12 2z"/></svg>';
@@ -1105,7 +1125,7 @@
       '- 直接输出回复内容本身：不要引号、不要解释、不要任何前后缀\n' +
       '- 必须与推文内容具体相关，不要泛泛而谈\n' +
       '- 本条回复的风格：' + st.prompt + '\n';
-    if (aiCfg.notes) s += '- 用户个人风格备注（优先遵循）：' + aiCfg.notes + '\n';
+    s += styleNotes(aiCfg.notes);
     return s;
   }
 
@@ -1438,7 +1458,7 @@
     }
     try {
       chrome.runtime.sendMessage(
-        { type: 'xam_ai', payload: { system: aiSystemPrompt(st), user: userMsg } },
+        { type: 'xam_ai', payload: { system: aiSystemPrompt(st), user: userMsg, useStyle: true } },
         (res) => {
           clearTimeout(slowTimer);
           btn.textContent = 'AI';
@@ -1555,9 +1575,10 @@
 
   /* ---------- AI 工具（借鉴 BlueV）：仿写 / 翻译 / 校对排版 / 海报 ---------- */
 
-  function aiCall(system, user, cb) {
+  // useStyle 默认 true（创作类任务都要带用户说话风格）；翻译/校对显式传 false
+  function aiCall(system, user, cb, useStyle) {
     try {
-      chrome.runtime.sendMessage({ type: 'xam_ai', payload: { system: system, user: user } }, (res) => {
+      chrome.runtime.sendMessage({ type: 'xam_ai', payload: { system: system, user: user, useStyle: useStyle !== false } }, (res) => {
         if (chrome.runtime.lastError || !res) {
           cb(null, 'AI 调用失败：' + ((res && res.error) || (chrome.runtime.lastError && chrome.runtime.lastError.message) || '无响应'));
           return;
@@ -1614,7 +1635,7 @@
       '- 输出一条可直接发布的推文草稿，中文，280 字以内\n' +
       '- 保留原推的核心信息点，但句式和例子必须重新组织，不要照抄原句\n' +
       '- 直接输出内容本身，不要引号、解释或前后缀\n';
-    if (aiCfg.notes) sys += '- 用户个人风格备注（优先遵循）：' + aiCfg.notes + '\n';
+    sys += styleNotes(aiCfg.notes);
     renderToast('AI 仿写中…');
     aiCall(sys, '原推文（作者 @' + ctx.handle + '）：\n' + ctx.text, (text, err) => {
       if (err) { renderToast(err); return; }
@@ -1642,7 +1663,7 @@
       text, (out, err) => {
         if (err) { renderToast(err); return; }
         showAiCard('翻译结果', out, null, null);
-      });
+      }, false);
   }
 
   function aiProofread(toolbar) {
@@ -1670,7 +1691,7 @@
           } catch (e) {}
           if (!ok) { try { navigator.clipboard.writeText(out); renderToast('无法直接替换，已复制到剪贴板'); } catch (e2) {} }
         });
-      });
+      }, false);
   }
 
   /* ---------- 爆帖灵感（发帖窗口专用）----------
@@ -1734,7 +1755,7 @@
       '1.【方向】一句话说清这条帖子写什么角度\n钩子：可直接粘贴使用的开头一句，15~30 字，有钩子感\n' +
       '- 只输出这 5 条，不要解释、不要前后缀、不要分隔线\n' +
       '- 中文，口语化，像真人随手打的' +
-      (aiCfg.notes ? '\n- 用户个人风格备注（优先遵循）：' + aiCfg.notes : '');
+      styleNotes(aiCfg.notes);
     const typed = composerTyped(toolbar);
     let userMsg = '';
     if (typed) userMsg += '用户已在发帖框输入（选题顺着这个方向）：\n' + typed.slice(0, 300) + '\n\n';
@@ -1774,7 +1795,7 @@
     const expandSys = '你在帮用户把一条发帖选题扩写成可直接发布到 X 的中文推文草稿：\n' +
       '- 像真人随手打的口语，自然、有个性\n- 280 字以内，最多 2 个 emoji，不要 hashtag 堆砌\n' +
       '- 直接输出内容本身，不要引号、解释或前后缀' +
-      (aiCfg.notes ? '\n- 用户个人风格备注（优先遵循）：' + aiCfg.notes : '');
+      styleNotes(aiCfg.notes);
     for (let i = 0; i < blocks.length; i++) {
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border-radius:10px;' +
@@ -1835,7 +1856,7 @@
       '- 【备选 B】换一种风格的版本（更犀利或更幽默，选与内容更搭的）\n' +
       '- 严格使用【诊断】【优化版】【备选 A】【备选 B】四个分节标记，节内不要再加小标题或编号\n' +
       '- 不要 hashtag 堆砌，不要解释改法，不要任何前后缀' +
-      (aiCfg.notes ? '\n- 用户个人风格备注（优先遵循）：' + aiCfg.notes : '');
+      styleNotes(aiCfg.notes);
     aiCall(sys, text.slice(0, 600), (out, err) => {
       if (err) { showAiCard('文案优化失败', err, null, null); return; }
       const secs = parseDraftSections(out);
