@@ -1408,6 +1408,8 @@
 
   // 最近生成过的回复（最多 3 条）：「换一个」时喂给 AI 作防雷同约束
   const recentReplies = [];
+  // 上次生成回复用的风格：「换一条」菜单项沿用，未生成过则默认智能匹配
+  let lastReplyStyle = null;
   function rememberGenerated(text) {
     const t = (text || '').trim();
     if (!t) return;
@@ -1423,6 +1425,7 @@
       renderToast('没有找到要回复的推文，请在推文详情页/回复框使用');
       return;
     }
+    lastReplyStyle = st;
     btn.textContent = '生成中…';
     btn.style.pointerEvents = 'none';
     // 15 秒还没回来提示网络慢（后台有 30s 超时兜底，不会永远转圈）
@@ -2216,12 +2219,30 @@
     }
     m.appendChild(grid);
     if (hasKey) {
+      // 换一条 / 一键发布：常驻菜单项（右下角操作条只在生成后短暂出现）
+      sep();
+      cap('不满意？');
+      const act = document.createElement('div');
+      act.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:2px;';
+      act.appendChild(mk('🔄 换一条', () => {
+        const live = document.contains(toolbar) ? toolbar : document.querySelector('div[data-testid="toolBar"]');
+        if (!live) { renderToast('回复框已关闭'); return; }
+        aiGenerate(btn, live, lastReplyStyle || AI_STYLES[0], recentReplies.slice());
+      }, true));
+      act.appendChild(mk('🚀 一键发布', () => {
+        const live = document.contains(toolbar) ? toolbar : document.querySelector('div[data-testid="toolBar"]');
+        publishReply(live);
+      }, true));
+      m.appendChild(act);
+      // 回复工具组（借鉴 BlueV）：仿写 / 翻译 / 校对排版，双栏与风格区一致
       sep();
       cap('回复工具');
-      // 工具组（借鉴 BlueV）：仿写 / 翻译 / 校对排版
-      m.appendChild(mk('✍️ 仿写此推', () => aiRewrite(toolbar)));
-      m.appendChild(mk('🌐 翻译此推', () => aiTranslate()));
-      m.appendChild(mk('🧹 校对排版', () => aiProofread(toolbar)));
+      const tools = document.createElement('div');
+      tools.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:2px;';
+      tools.appendChild(mk('✍️ 仿写此推', () => aiRewrite(toolbar), true));
+      tools.appendChild(mk('🌐 翻译此推', () => aiTranslate(), true));
+      tools.appendChild(mk('🧹 校对排版', () => aiProofread(toolbar), true));
+      m.appendChild(tools);
     }
     sep();
     // 海报不依赖 AI Key，始终可用；接口/风格统一在扩展设置页配置，菜单里不再占位
